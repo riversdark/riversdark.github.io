@@ -1,0 +1,2 @@
+User-agent: *
+Sitemap: https://riversdark.github.io/sitemap.xml

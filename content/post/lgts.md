@@ -1,16 +1,17 @@
 +++
 title = "Bayesian modeling of global trend, local variation, seasonality, and heterogeneity in time series"
 date = 2021-05-18
-tags = ["ts"]
-categories = ["Stats"]
-draft = true
+tags = ["timeseries"]
+categories = ["Statistics"]
+draft = false
+toc = true
 +++
 
-
-In this post we'll implement the time series models from the RGLT R package, which can be used to model global trend, local variation, and seasonalities, key features of flexible time series data modeling. 
+In this post we'll implement a time series framework based on a flexible smoothed exponential process. The framework can be used to model global trend, local variation, seasonality and other features that are essential for flexible time series data modeling.
 
 <!--more-->
-The post also covers several different features under this general framework, notably:
+
+This is mostly a port of the R package [Rlgt](https://cran.r-project.org/web/packages/Rlgt/index.html) (Bayesian Exponential Smoothing Models with Trend Modifications) with some changes in the detailed implementation. One model has already been [ported](http://num.pyro.ai/en/stable/tutorials/time%5Fseries%5Fforecasting.html) to Numpyro in one of its tutorials, so that specific model is not covered here. This post also covers several other features under this general framework, notably:
 
 -   modeling over-dispersed observations with Student-t distribution
 -   explicit and extensive modeling of the variation to capture data heteroscedasticity
@@ -104,7 +105,7 @@ l\_{t} &= \beta  \left( g\_{t}-g\_{t-1} \right) + \left( 1- \beta  \right) l\_{t
 
 To model the outcome we'll use the Student's T distribution, which has three parameters: the degree of freedom \\(\nu\\), the expected value \\(\mu\\), and the standard deviation \\(\sigma\\).
 
-The degree of freedom determines how heavy tailed the distribution will be: when the degree of freedom is one, the T distribution becomes Cauchy distribution, which is so heavy tailed that the mean and standard deviation can not be properly defined; when the degree of freedom approches infinity the distribution approaches Normal, with very narrow tails. Using the T distribution, we can account for heavy tail data when the data are indeed heavy tailed, but it's also flexible enough for when they are not. Since à priori we don't have much information on the degree of freedom, we'll put a wide uniform prior on it.
+The degree of freedom determines how heavy tailed the distribution will be: when the degree of freedom is one, the T distribution becomes Cauchy distribution, which is so heavy tailed that the mean and standard deviation can not be properly defined; when the degree of freedom approaches infinity the distribution approaches Normal, with very narrow tails. Using the T distribution, we can account for heavy tail data when the data are indeed heavy tailed, but it's also flexible enough for when they are not. Since à priori we don't have much information on the degree of freedom, we'll put a wide uniform prior on it.
 
 The expected value is where we'll put most of our modeling focus on. In this first model we'll consider modeling it as the sum of a global trend \\(\text{G}\\) and a local variation \\(\text{L}\\), with the global trend being modeled as a smoothed exponential function of the hidden level \\(g\\), and the local variation as a dampened baseline variation \\(l\\). Furthermore, both the hidden level \\(g\\) and the variation \\(l\\) follow a smoothed autoregressive process. For hidden level \\(g\\), it's a weighted average between the outcome (with local trend removed), and the previous global trend. For the baseline variation \\(l\\) it's a weighted average between the increment in hidden levels, and the previous baseline variation. \\(\alpha\\) and \\(\beta\\) are the corresponding smoothing weights.
 
@@ -112,9 +113,9 @@ The standard deviation is modeled with another smoothed exponential process of t
 
 Because both the standard deviation \\(\sigma\\) and the expected value \\(\mu\\) follow a smoothed exponential process, we have to guarantee the expected value and the hidden level \\(g\\) be always positive. This assumption is reasonable when the data is also positive, as is the case here.
 
-It's important to note that the models we are building might be too complex for the data we are using. Here by exploratory analysis we can see that the BJ sales data have a global trend, and there are clearly local variations, but there doesn't seem to be many sudden changes in the series, and as such the smoothed exponential process for the standard deviation might not be strictly necessar. Still, we use a more complex model to account for the **potential** heterogeneities in the data.
+It's important to note that the models we are building might be too complex for the data we are using. Here by exploratory analysis we can see that the BJ sales data have a global trend, and there are clearly local variations, but there doesn't seem to be many sudden changes in the series, and as such the smoothed exponential process for the standard deviation might not be strictly necessary. Still, we use a more complex model to account for the **potential** heterogeneities in the data.
 
-Now we can chose some proper priors for the model parameters and code the model in NumPyro. Of course, chosing priors is an integral part of Bayesian modeling and it is no the easy part, we need to consider our prior knowledge carefully and gradually update that in model criticism. The priors chosen for this model implementation take into account both the model structure, and the general knowledge we have gained from exploratory data analysis. In Bayesian analysis each model should be a bespoke model for the specific data set we are modeling.
+Now we can chose some proper priors for the model parameters and code the model in NumPyro. Of course, choosing priors is an integral part of Bayesian modeling and it is no the easy part, we need to consider our prior knowledge carefully and gradually update that in model criticism. The priors chosen for this model implementation take into account both the model structure, and the general knowledge we have gained from exploratory data analysis. In Bayesian analysis each model should be a bespoke model for the specific data set we are modeling.
 
 Because this is a time series model, we use the first observation to initialise the model. Specifically, we'll use it to indicate the starting whereabouts of the hidden level \\(g\\).
 
@@ -312,7 +313,7 @@ Number of samples with extreme values :  48
 
 {{< figure src="/ox-hugo/06995b099e8370d091883d06fff45bedb3e0919c.png" >}}
 
-Even though we have consciously limited the prior distribution for \\(\rho\\) to favour smaller values, when its values are still relatively large, we'are likely to see samples with extreme outcomes. This is understandable because \\(\rho\\) decides how fast the exponential grows.
+Even though we have consciously limited the prior distribution for \\(\rho\\) to favour smaller values, when its values are still relatively large, we're likely to see samples with extreme outcomes. This is understandable because \\(\rho\\) decides how fast the exponential grows.
 
 We can also plot the distribution of one single variable of interest:
 
@@ -322,7 +323,7 @@ sns.histplot(lgt_prior['rho'], bins=30, stat='probability');
 
 {{< figure src="/ox-hugo/8129883de10c3328bc042ec5ea6b84706f0ca6ef.png" >}}
 
-This corresponds to the samples at coordinate `rho` in the previous plot. A priori the expected value of \\(\rho\\) is 0.2, but as we can see, that are many samples will buch bigger values. We can try to change the priors for these parameters to limit their behavoir, but the problem here doesn't seem very serious so we'll leave them be for now.
+This corresponds to the samples at coordinate `rho` in the previous plot. A priori the expected value of \\(\rho\\) is 0.2, but as we can see, that are many samples will much bigger values. We can try to change the priors for these parameters to limit their behavior, but the problem here doesn't seem very serious so we'll leave them be for now.
 
 We now plot the model outcome, and other local variables to check the implications of the model priors.
 
@@ -372,7 +373,7 @@ Number of samples with extreme values :  6
 
 This might be useful for understanding the general interactions between the model and the data, and also for comparison with the posterior, to see how much we have learned.
 
-To test that our inference engine and the model works properly, We can then chose one of our prior samples, feed it to our inference engine to see if we can recover the parameters used to generate them. It's important to realise that we are not always able to recover the parameters, because as we have see in the prior check, there are some highly unregular samples.
+To test that our inference engine and the model works properly, We can then chose one of our prior samples, feed it to our inference engine to see if we can recover the parameters used to generate them. It's important to realise that we are not always able to recover the parameters, because as we have see in the prior check, there are some highly irregular samples.
 
 First chose one sample
 
@@ -398,7 +399,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 3000/3000 [00:19<00:00, 156.16it/s, 15 steps of size 9.66e-02. acc. prob=0.94]
+sample: 100%|██████████| 3000/3000 [00:21<00:00, 142.00it/s, 15 steps of size 9.66e-02. acc. prob=0.94]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.36      0.06      0.35      0.26      0.46   1301.22      1.00
@@ -523,7 +524,7 @@ plot_post(lgt_y, lgt_post, lgt_lvs, nrow=4, ncol=2)
 
 We can see that the prediction is not that far off: we get the basic trend right, and the 50% credible interval does cover the observed data. But still, our model prediction is basically a linear extrapolation, the model prediction is almost entirely determined by the global trend, and the local variation in our model contributed little, if anything at all, in modifying the global behaviour. This motivates us to add some new information of locality to our model, and this is why we'll add a new regression component in the next part.
 
-Besides, the posterior of \\(\sigma\\) is very small and almost constant, this indicates that the smoothhed exponential model for the standard deviation is entirely redandent, we might as well just use a simple homogeneous formulation.
+Besides, the posterior of \\(\sigma\\) is very small and almost constant, this indicates that the smoothed exponential model for the standard deviation is entirely redundant, we might as well just use a simple homogeneous formulation.
 
 Apart from visualising the posterior prediction, there are also many different scores we can check. The first one is the [symmetric mean absolute percentage error](https://en.wikipedia.org/wiki/Symmetric%5Fmean%5Fabsolute%5Fpercentage%5Ferror), which is based on the percentage error of the mean prediction. Notice that the "mean" here refers to **the mean of the point estimate** across all the observations, and for the point estimate itself, we can use the mean, the median, or any other point estimate of the posterior.
 
@@ -606,7 +607,7 @@ plt.title('BJ sales lead indicator');
 
 we can see that the indicator variable follows a similar progression pattern as that of the sales data, so it should offer us useful information to improve the model prediction.
 
-We'll use the lead indicator, lagged 3 and 4 periods, as predictors. The total length of the data, since we have to remove the first 4 data points for lack of predictors, becomes 146. We'll use the last 10 periord for prediction as before. The regression component of the model will also have an intercept.
+We'll use the lead indicator, lagged 3 and 4 periods, as predictors. The total length of the data, since we have to remove the first 4 data points for lack of predictors, becomes 146. We'll use the last 10 period for prediction as before. The regression component of the model will also have an intercept.
 
 <a id="code-snippet--lgtr-data-processing"></a>
 ```python
@@ -713,7 +714,7 @@ Local variables:
 G (500, 136); L (500, 136); R (500, 136); g (500, 136); l (500, 136); mu (500, 136); y (500, 136);
 ```
 
-First let's take a look at our trancated Cauchy prior for the initial hidden level
+First let's take a look at our truncated Cauchy prior for the initial hidden level
 
 <a id="code-snippet--lgtr-g-init"></a>
 ```python
@@ -738,7 +739,7 @@ Number of samples with extreme values :  106
 
 {{< figure src="/ox-hugo/68557b6266a38902d69dc2513af05743afeca6cd.png" >}}
 
-We don't have numerical overflows, this is good. We do have more samples with very large outcomes, but this is to be expected, because we are introducing more model components to the model, and this expands our modeling space and consequently the outcome range. What matters here, is that there are no clear patterns to the extreme outcomes, which implies that the extreme outcomes are the natural result of expanding the model space, not that of some malfunctional model component.
+We don't have numerical overflows, this is good. We do have more samples with very large outcomes, but this is to be expected, because we are introducing more model components to the model, and this expands our modeling space and consequently the outcome range. What matters here, is that there are no clear patterns to the extreme outcomes, which implies that the extreme outcomes are the natural result of expanding the model space, not that of some malfunctionaling model component.
 
 And the prior prediction for local variables
 
@@ -770,7 +771,7 @@ Number of samples with extreme values :  26
 
 {{< figure src="/ox-hugo/6d446eaefb01e8a2badfa0db3207e0691a107868.png" >}}
 
-The introduction of the regression component makes the relationship between the hidden level \\(l\\) and the model outcome \\(y\\) less prominent. This implies that the current model has the **potential** to improve on the previous model, since the model now has more flexibility introduced by the R component. However, we should also be aware that if the regression part does not expalin the outcome very well, it can also potentially reduce the overall predictive power of the model, as it obscures the previously dominating relationship between the outcome and the hidden level.
+The introduction of the regression component makes the relationship between the hidden level \\(l\\) and the model outcome \\(y\\) less prominent. This implies that the current model has the **potential** to improve on the previous model, since the model now has more flexibility introduced by the R component. However, we should also be aware that if the regression part does not explain the outcome very well, it can also potentially reduce the overall predictive power of the model, as it obscures the previously dominating relationship between the outcome and the hidden level.
 
 Like before, now we chose one sample from the prior predictive samples and do parameter recovery.
 
@@ -795,7 +796,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [01:14<00:00, 26.71it/s, 1023 steps of size 5.82e-03. acc. prob=0.96]
+sample: 100%|██████████| 2000/2000 [01:19<00:00, 25.08it/s, 1023 steps of size 5.82e-03. acc. prob=0.96]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.35      0.03      0.34      0.31      0.39    507.87      1.00
@@ -1097,7 +1098,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [01:21<00:00, 24.64it/s, 255 steps of size 6.31e-03. acc. prob=0.84]
+sample: 100%|██████████| 2000/2000 [01:24<00:00, 23.74it/s, 255 steps of size 6.31e-03. acc. prob=0.84]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.62      0.10      0.62      0.45      0.77    383.38      1.00
@@ -1212,7 +1213,7 @@ In the last three models, we have used three different methods to model the outc
 
 In the previous models, to capture the local variation, we first used a Markov process, in which we modeled the local variation as the change in global trend; then, since we also have some predictors corresponding to each time period, we also added a regression component. But we didn't introduce seasonality to the model, because there doesn't seem to be any such feature present in this specific data set. However, if the data are indeed seasonal, we can also add new components to address this.
 
-Still, seasonality can be represented in infinitely many different ways, and in our modeling framework, there remains the question of how seasonality should be incorporated into it. Should it be an additional component, like the regression component we have just added, to capture extra local variation, or should it be an enhancing factor, that impacts that outcome by changing the global trend? In the next section we first introduce a multiplicative seasonality, which affects the outcome by increasing or dereasing the global trend, and in the section that follows, we'll introduce an additive seasonality as an independent component.
+Still, seasonality can be represented in infinitely many different ways, and in our modeling framework, there remains the question of how seasonality should be incorporated into it. Should it be an additional component, like the regression component we have just added, to capture extra local variation, or should it be an enhancing factor, that impacts that outcome by changing the global trend? In the next section we first introduce a multiplicative seasonality, which affects the outcome by increasing or decreasing the global trend, and in the section that follows, we'll introduce an additive seasonality as an independent component.
 
 
 ## Adding multiplicative seasonality to the model {#adding-multiplicative-seasonality-to-the-model}
@@ -1233,7 +1234,7 @@ plt.title('Monthly Air passengers');
 
 In this model we'll replace the local trend with a seasonal effect. Specifically, we'll start with a multiplicative model in this section and explore the additive one in the next.
 
-This model assumes the number of periods for seasonality is already known and thus not infered from the data. This works with datasets with natural seasonality, which is the case here with monthly data.
+This model assumes the number of periods for seasonality is already known and thus not inferred from the data. This works with datasets with natural seasonality, which is the case here with monthly data.
 
 \begin{align\*}
 y\_{t} &\sim \text{T} (\nu,\mu\_{t}, \sigma\_{t}) \\\\\\
@@ -1391,7 +1392,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [00:28<00:00, 69.51it/s, 127 steps of size 2.65e-02. acc. prob=0.95]
+sample: 100%|██████████| 2000/2000 [00:29<00:00, 68.28it/s, 127 steps of size 2.65e-02. acc. prob=0.95]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.08      0.02      0.07      0.05      0.10    382.73      1.00
@@ -1550,7 +1551,7 @@ sMAPE: 6.74%, MAE: 29.26, RMSE: 33.17, CPRS: 19.79
 
 ## Using additive seasonality {#using-additive-seasonality}
 
-Next we replace the multiplicate seasonality with an additive one. For the multiplicative seasonality, we assume it affects the outcome by enhancing or decreasing the global trend, an amplifying factor, so it naturally only takes positive values. But for the additive seasonality, we assume it adds or deducts from the global trend, so it can be both positive and negative.
+Next we replace the multiplicative seasonality with an additive one. For the multiplicative seasonality, we assume it affects the outcome by enhancing or decreasing the global trend, an amplifying factor, so it naturally only takes positive values. But for the additive seasonality, we assume it adds or deducts from the global trend, so it can be both positive and negative.
 
 <a id="code-snippet--sgta-data-process"></a>
 ```python
@@ -1716,7 +1717,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [00:21<00:00, 92.04it/s, 127 steps of size 7.50e-02. acc. prob=0.86]
+sample: 100%|██████████| 2000/2000 [00:21<00:00, 91.81it/s, 127 steps of size 7.50e-02. acc. prob=0.86]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.26      0.06      0.26      0.16      0.35    332.13      1.00
@@ -1892,7 +1893,7 @@ g\_{t} &= \alpha ( \text{MA}\_{T} - s\_{t} )  + \left( 1- \alpha  \right) \text{
 s\_{t+T} &= \beta (y\_{t} - \text{G}\_{t}) + \left( 1- \beta  \right) s\_{t}  \\\\\\
 \end{align\*}
 
-The moving average is computed with the outcome of the previous T periods, but there are less than T previous outcomes for the fisrt T periods, so for these first T periods we'll calculate the moving average with all the outcomes available. When coding the model, it's easier to keep track of the moving window rather than the moving average, and that's how we are going to code our model.
+The moving average is computed with the outcome of the previous T periods, but there are less than T previous outcomes for the first T periods, so for these first T periods we'll calculate the moving average with all the outcomes available. When coding the model, it's easier to keep track of the moving window rather than the moving average, and that's how we are going to code our model.
 
 <a id="code-snippet--sgtm-model"></a>
 ```python
@@ -2041,7 +2042,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [00:34<00:00, 58.56it/s, 127 steps of size 2.55e-02. acc. prob=0.97]
+sample: 100%|██████████| 2000/2000 [00:32<00:00, 61.40it/s, 127 steps of size 2.55e-02. acc. prob=0.97]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.18      0.11      0.16      0.05      0.31    263.80      1.00
@@ -2179,7 +2180,9 @@ plot_post(sgtm_y, sgtm_post, sgtm_lvs, ncol=2)
 
 {{< figure src="/ox-hugo/d0d70c10f5b23a86cf71bc57239b75d16a352176.png" >}}
 
-Here the prediction is slightly better than before, the underestimation problem seems abatted, but we're spotting another problem. The global trend still has a very strong seasonality effect built in it. Upon some reflection it's not difficult to understand why: we're now using the moving average to calculate the global trend, and since the moving average uses all the outcome for one cycle, the seasonality is clearly present in it. To avoid this we might consider removing the seasonality in moving average calculation, but this removal might also introduce new problems.
+Here the prediction is slightly better than before, the underestimation problem seems abatted, but we're spotting another problem. The global trend still has a very strong seasonality effect built in it. Upon some reflection it's not difficult to understand why: we're now using the moving average to calculate the global trend, and since the moving average uses all the outcome for one cycle, the seasonality is clearly present in it.
+
+And finally the scores.
 
 <a id="code-snippet--sgtm-score"></a>
 ```python
@@ -2190,12 +2193,10 @@ check_scores(sgtm_post, sgtm_y, 24)
 sMAPE: 5.67%, MAE: 25.50, RMSE: 29.25, CPRS: 17.07
 ```
 
-The model underestimates the outcome. The cost of the model being TOO flexible. In this data set the global trend is quite clear, a simple AR model should suffice.
-
 
 ## Conclusion {#conclusion}
 
-In this post we studied some time series models to model global trend, local variation, and seasonality. Our goal is not to build the perfect model: every model should be tailor made for the specific data set. Rather, our goal is to build models using composable components and observing their effects on the model outcome, and make changes when necessary.
+In this post we studied some time series models for global trend, local variation, and seasonality. Our goal is not to build the perfect model; rather, our goal is to build models using composable components, observe their effects, and make changes when necessary, so that we can model the specific characteristics in each data set.
 
 The models are all based on a smoothed exponential process, which is quite flexible in its wide range of behaviours, but sometimes when modeling data with strong pattern this flexibility might not be necessary.
 

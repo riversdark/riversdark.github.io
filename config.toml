@@ -1,6 +1,6 @@
 title = "Lottery of Babylonian variations"
 theme = "even"
-baseURL = "http://localhost:1313/"
+baseURL = "https://riversdark.github.io/"
 languageCode = "en"
 defaultContentLanguage = "en"                             # en / zh-cn / ... (This field determines which i18n file to use)
 preserveTaxonomyNames = true

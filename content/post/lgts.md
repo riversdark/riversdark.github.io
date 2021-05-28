@@ -1,7 +1,7 @@
 +++
 title = "Bayesian modeling of global trend, local variation, seasonality, and heterogeneity in time series"
 date = 2021-05-18
-tags = ["timeseries"]
+tags = ["time-series"]
 categories = ["Statistics"]
 draft = false
 toc = true
@@ -11,7 +11,7 @@ In this post we'll implement a time series framework based on a flexible smoothe
 
 <!--more-->
 
-This is mostly a port of the R package [Rlgt](https://cran.r-project.org/web/packages/Rlgt/index.html) (Bayesian Exponential Smoothing Models with Trend Modifications) with some changes in the detailed implementation. One model has already been [ported](http://num.pyro.ai/en/stable/tutorials/time%5Fseries%5Fforecasting.html) to Numpyro in one of its tutorials, so that specific model is not covered here. This post also covers several other features under this general framework, notably:
+This is mostly a port of the R package [Rlgt: Bayesian Exponential Smoothing Models with Trend Modifications](https://cran.r-project.org/web/packages/Rlgt/index.html) with some changes in the detailed implementation. One of the models has already been [ported to Numpyro](http://num.pyro.ai/en/stable/tutorials/time%5Fseries%5Fforecasting.html) in one of the Numpyro tutorials, so that specific model is not covered here. This post also covers several other features under this general framework, notably:
 
 -   modeling over-dispersed observations with Student-t distribution
 -   explicit and extensive modeling of the variation to capture data heteroscedasticity
@@ -399,7 +399,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 3000/3000 [00:21<00:00, 142.00it/s, 15 steps of size 9.66e-02. acc. prob=0.94]
+sample: 100%|██████████| 3000/3000 [00:20<00:00, 147.23it/s, 15 steps of size 9.66e-02. acc. prob=0.94]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.36      0.06      0.35      0.26      0.46   1301.22      1.00
@@ -796,7 +796,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [01:19<00:00, 25.08it/s, 1023 steps of size 5.82e-03. acc. prob=0.96]
+sample: 100%|██████████| 2000/2000 [01:15<00:00, 26.61it/s, 1023 steps of size 5.82e-03. acc. prob=0.96]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.35      0.03      0.34      0.31      0.39    507.87      1.00
@@ -1098,7 +1098,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [01:24<00:00, 23.74it/s, 255 steps of size 6.31e-03. acc. prob=0.84]
+sample: 100%|██████████| 2000/2000 [01:21<00:00, 24.55it/s, 255 steps of size 6.31e-03. acc. prob=0.84]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.62      0.10      0.62      0.45      0.77    383.38      1.00
@@ -1392,7 +1392,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [00:29<00:00, 68.28it/s, 127 steps of size 2.65e-02. acc. prob=0.95]
+sample: 100%|██████████| 2000/2000 [00:30<00:00, 65.59it/s, 127 steps of size 2.65e-02. acc. prob=0.95]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.08      0.02      0.07      0.05      0.10    382.73      1.00
@@ -1717,7 +1717,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [00:21<00:00, 91.81it/s, 127 steps of size 7.50e-02. acc. prob=0.86]
+sample: 100%|██████████| 2000/2000 [00:23<00:00, 83.44it/s, 127 steps of size 7.50e-02. acc. prob=0.86]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.26      0.06      0.26      0.16      0.35    332.13      1.00
@@ -2042,7 +2042,7 @@ mcmc.print_summary()
 ```
 
 ```text
-sample: 100%|██████████| 2000/2000 [00:32<00:00, 61.40it/s, 127 steps of size 2.55e-02. acc. prob=0.97]
+sample: 100%|██████████| 2000/2000 [00:34<00:00, 58.59it/s, 127 steps of size 2.55e-02. acc. prob=0.97]
 
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
      alpha      0.18      0.11      0.16      0.05      0.31    263.80      1.00

@@ -1,13 +1,13 @@
 +++
-title = "The Pest"
+title = "The Pest: a primer on Bayesian model building workflow"
 date = 2021-02-24
-tags = ["workflow"]
+tags = ["workflow", "time-series", "gaussian-process"]
 categories = ["Statistics"]
 draft = false
 toc = true
 +++
 
-This is a primer on Bayesian model building and inference.
+A whirlwind tour on Bayesian model building, Bayesian workflow, model criticism and robust inference.
 
 <!--more-->
 
@@ -192,14 +192,14 @@ sp_y = {
 }
 ```
 
-To test our model we also create a dict of fake predictors. The fake
+To test our model we'll also create a dict of fake predictors. The fake
 predictors would have the same value range as the real data, but more
-uniformly distributed to avoid complicate geometries in the data. Also
-the number of fake data is not necessarily equal that of the real data;
-as a matter of fact we have generated more fake predictors than real
-data so that we'll have enough data to guarantee the model works well
-and if the model doesn't work well, we can rule out (to a certain degree
-of course) that the problem is with our data, so we can focus our
+uniformly distributed to avoid complicate geometries in observed data. Also
+the number of fake observations does not necessarily equal that of the real data;
+as a matter of fact we have deliberately generated more fake predictors than the real
+data so that we'll have enough data to guarantee the model works well,
+and if it doesn't, we can rule out (to a certain degree
+of course) the problem being with our data, and focus our
 attention on debugging the model.
 
 ```python
@@ -209,7 +209,7 @@ sp_fX = {
 }
 ```
 
-And we'll also prepare a dict of fake parameters for the model for model
+And we'll also prepare a dict of fake model parameters for model
 soundness check.
 
 ```python
@@ -262,8 +262,8 @@ sns.kdeplot(x=sp_prior_pred['β'].flatten());
 
 {{< figure src="/ox-hugo/2df45a905b749468b0cec00c3a4f6971950a5de3.png" >}}
 
-There is no surprise here, the kde estimations of \\(\alpha\\) and \\(\beta\\)
-correspond to their prior distributions.
+There is no surprise here, the KDE estimations of \\(\alpha\\) and \\(\beta\\)
+correspond well to their prior distributions. And the outcome
 
 ```python
 sp_prior_pred['y'].max()
@@ -273,10 +273,12 @@ sp_prior_pred['y'].max()
 DeviceArray(6872, dtype=int64)
 ```
 
-Looks like we have some rare but very large predictions, this is in line
+Looks like we have some rare but very large predictions, and this is in line
 with our earlier concern: when using the exponential transformation,
-numerical stability can be a potential problem. But luckily through
-rescaling the data we have avoided that. But we'll clip the
+numerical stability can be a potential problem, which, luckily, by
+rescaling the data we have been able to avoid.
+
+To get a good sense of how the bulk of the data behaves,  we'll clip the
 visualisation of the prediction for the outcome variable.
 
 ```python
@@ -301,11 +303,11 @@ inference.
 ### Fit model to fake data {#fit-model-to-fake-data}
 
 However, before doing inference on real data, we should check that our
-model works well with simulated data. We'll simulate data according to
-the model and then check that we can sufficiently recover the parameter
+model works well with simulated data. We'll simulate data from
+the model and then check that we can recover the parameter
 values used in the simulation.
 
-Here we'll fix the values of the parameters and draw one sample from the
+Here we'll fix the parameter values and draw one sample from the
 model, then feed the sample back to the model, to see if we can recover
 the fixed parameters that has been used to generate that exact data. I
 collected the code for running inference and predictions into helper
@@ -346,7 +348,7 @@ def recover_params(model, params, X, sites=['y'], **mc_params):
     return run_mcmc(model, X, pred, **mc_params)
 ```
 
-Now see how the inference works
+Now see how the inference worked
 
 ```python
 recover_params(sp, sp_params, sp_fX);
@@ -361,12 +363,12 @@ recover_params(sp, sp_params, sp_fX);
 Number of divergences: 0
 ```
 
-The results seem excellent. We can move on to the real data.
+The results seem excellent. We can now move on to the real data.
 
 
 ### Fit model to real data {#fit-model-to-real-data}
 
-we now fit the model to the actually observed data.
+we now fit the model to the actual observed data.
 
 ```python
 sp_mcmc = run_mcmc(sp, sp_X, sp_y)
@@ -506,7 +508,7 @@ the building and the number of complaints received:
 sns.lmplot(x='total_sq_foot', y='complaints', data=pest_data);
 ```
 
-{{< figure src="/ox-hugo/e58594b62872e3179a407e407d43aee6b741b702.png" >}}
+{{< figure src="/ox-hugo/9fb385e3bf2c58abb5372c33a741110ec6d2d9d7.png" >}}
 
 Using the property manager's intuition, we also include an extra pieces
 of information we know about the buildings - whether there is a live in
@@ -804,12 +806,12 @@ numerically more stable:
 k, p = 3.5, 0.3
 nb = NegativeBinomial(total_count=k, probs=p)
 
-nb.mean(), k*p / (1-p), nb.variance(), k*p / (1-p)**2
+print(nb.mean(), k*p / (1-p), nb.variance(), k*p / (1-p)**2)
 ```
 
-|             |                     |                    |             |                          |                    |
-|-------------|---------------------|--------------------|-------------|--------------------------|--------------------|
-| DeviceArray | (1.5 dtype=float32) | 1.5000000000000002 | DeviceArray | (2.142857 dtype=float32) | 2.1428571428571432 |
+```text
+1.5 1.5000000000000002 2.142857 2.1428571428571432
+```
 
 There is another implementation of the Negative Binomial distribution,
 natively implemented in NumPyro, that directly augments the Poisson
@@ -851,12 +853,12 @@ from numpyro.distributions import GammaPoisson
 
 c, r = 3.5, 0.7/0.3
 gap = GammaPoisson(c,r)
-gap.mean, c/r, gap.variance, c*(1+r)/r**2
+print(gap.mean, c/r, gap.variance, c*(1+r)/r**2)
 ```
 
-|     |     |             |                            |                   |
-|-----|-----|-------------|----------------------------|-------------------|
-| 1.5 | 1.5 | DeviceArray | (2.14285714 dtype=float64) | 2.142857142857143 |
+```text
+1.5 1.5 2.1428571428571423 2.142857142857143
+```
 
 Another difference with the native NumPyro implementation, is that the
 mean and variance are attributes while with the Tensorflow one they are
@@ -1321,30 +1323,30 @@ We can see that most of the \\(\lambda\\)s are small, but we have a very
 long tail.
 
 ```python
-vi_prior_pred['y'].min(), vi_prior_pred['y'].max()
-```
-
-|             |                                    |             |                                   |
-|-------------|------------------------------------|-------------|-----------------------------------|
-| DeviceArray | (-9223372036854775808 dtype=int64) | DeviceArray | (2096574335488622592 dtype=int64) |
-
-```python
-jnp.sum(vi_prior_pred['y'] < 0)
+print(vi_prior_pred['y'].min(), vi_prior_pred['y'].max())
 ```
 
 ```text
-DeviceArray(15, dtype=int64)
+-9223372036854775808 2096574335488622592
+```
+
+```python
+print(jnp.sum(vi_prior_pred['y'] < 0))
+```
+
+```text
+15
 ```
 
 As we can see here, we're having numerical overflow. Let's see where the problem is happening
 
 ```python
-jnp.where(jnp.any(vi_prior_pred['y'] < 0, axis=1))
+print(jnp.where(jnp.any(vi_prior_pred['y'] < 0, axis=1)))
 ```
 
-|             |                               |
-|-------------|-------------------------------|
-| DeviceArray | ((9 600 843 916) dtype=int64) |
+```text
+(DeviceArray([  9, 600, 843, 916], dtype=int64),)
+```
 
 we have `jnp.where(jnp.any(vi_prior_pred['y'] < 0, axis=1))[0].shape[0]` `4` samples having overflow
 
@@ -1510,18 +1512,18 @@ Stancon tutorial, and the [bayesplot](https://mc-stan.org/bayesplot/index.html) 
 have many functions to visualise and analyse the divergences, and Michael Betancourt's [paper on
 Hamiltonian Monte Carlo in general](https://arxiv.org/abs/1701.02434) and [diagnosing biased inference case study in specific](https://betanalpha.github.io/assets/case%5Fstudies/divergences%5Fand%5Fbias.html) contain many great insights on this topic.
 
-Unfortunate for the didactive purpose and fortunate from a modeling
+Unfortunate for the didactic purpose and fortunate from a modeling
 point of view, we only have two divergent cases so the plots are not
 very helpful here, we'll just print out the divergent transitions and
 see if we can spot any problem.
 
 ```python
-jnp.where(vi_mcmc.get_extra_fields()['diverging'] == True)
+print(jnp.where(vi_mcmc.get_extra_fields()['diverging'] == True))
 ```
 
-|             |                                                          |
-|-------------|----------------------------------------------------------|
-| DeviceArray | ((238 319 441 944 1647 1652 1654 1657 1887) dtype=int64) |
+```text
+(DeviceArray([ 238,  319,  441,  944, 1647, 1652, 1654, 1657, 1887], dtype=int64),)
+```
 
 ```python
 for id in jnp.where(vi_mcmc.get_extra_fields()['diverging'] == True)[0]:
@@ -1600,19 +1602,16 @@ def vi2(traps, log_sq_foot, b, building_data):
 There is no change in the data.
 
 
-### prior predictive check {#prior-predictive-check}
+### Prior predictive check {#prior-predictive-check}
 
 ```python
 vi2_prior_pred = get_prior_pred(vi2, vi_X)
+print(vi2_prior_pred['y'].min(), vi2_prior_pred['y'].max())
 ```
 
-```python
-vi2_prior_pred['y'].min(), vi2_prior_pred['y'].max()
+```text
+0 2128827
 ```
-
-|             |                 |             |                       |
-|-------------|-----------------|-------------|-----------------------|
-| DeviceArray | (0 dtype=int64) | DeviceArray | (2128827 dtype=int64) |
 
 Great, now there is no longer any numerical overflow
 
@@ -1693,16 +1692,16 @@ vincp_params = {
 ```
 
 
-### prior predictive check {#prior-predictive-check}
+### Prior predictive check {#prior-predictive-check}
 
 ```python
 vincp_prior_pred = get_prior_pred(vincp, vi_X)
-vincp_prior_pred['y'].min(), vincp_prior_pred['y'].max()
+print(vincp_prior_pred['y'].min(), vincp_prior_pred['y'].max())
 ```
 
-|             |                 |             |                       |
-|-------------|-----------------|-------------|-----------------------|
-| DeviceArray | (0 dtype=int64) | DeviceArray | (2128827 dtype=int64) |
+```text
+0 2128827
+```
 
 ```python
 clipped_kde(vincp_prior_pred['y']);
@@ -2752,7 +2751,7 @@ effects are
 
 \begin{aligned}
 \theta\_1 & \sim \text{Normal}\left(0, \frac{\upsilon}{\sqrt{1 - \rho^2}}\right) \\\\\\
-\theta\_m & \sim \text{Normal}\left(\rho  \theta\_{m-1}, \upsilon\right) \forall t > 1
+\theta\_m & \sim \text{Normal}\left(\rho  \theta\_{m-1}, \upsilon\right) \; \forall t > 1
 \end{aligned}
 
 Rewriting our process in terms of the errors will make the derivation of

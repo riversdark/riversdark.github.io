@@ -2,6 +2,7 @@
 title = "About the blog"
 date = 2021-01-01
 draft = false
+lastmod = 2021-05-21
 +++
 
 <!--more-->

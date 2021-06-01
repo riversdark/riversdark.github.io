@@ -16,7 +16,7 @@ pygmentsCodefencesGuessSyntax = true
 
 hasCJKLanguage = true     # has chinese/japanese/korean ? # 自动检测是否包含 中文\日文\韩文
 paginate = 10                                             # 首页每页显示的文章数
-disqusShortname = ""      # disqus_shortname
+disqusShortname = "olivierma"      # disqus_shortname
 googleAnalytics = ""      # UA-XXXXXXXX-X
 copyright = ""            # default: author.name ↓        # 默认为下面配置的author.name ↓
 
@@ -159,7 +159,7 @@ copyright = ""            # default: author.name ↓        # 默认为下面配
   # You can get your appid and appkey from https://leancloud.cn
   # more info please open https://valine.js.org
   [params.valine]
-    enable = true
+    enable = false
     appId = 'yL9QA5qnIEsYi5uwn2cB3a5Q-gzGzoHsz'
     appKey = 'Tom6ULmp1DpbzybAOgACKHrv'
     notify = true  # mail notifier , https://github.com/xCss/Valine/wiki

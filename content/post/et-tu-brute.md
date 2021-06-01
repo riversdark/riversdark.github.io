@@ -2,7 +2,7 @@
 title = "Et tu, Brute ?"
 date = 2021-03-09
 categories = ["French", "Literature"]
-draft = true
+draft = false
 +++
 
 _Un extrait de **The Plot** de Jorge Luis Borges._

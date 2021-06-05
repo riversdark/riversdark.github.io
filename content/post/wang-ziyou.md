@@ -7,8 +7,6 @@ draft = false
 
 _Un extrait de **世说新语，任誕第二十三**._
 
-<!--more-->
-
 Huizhi habitait au nord de la montagne. (Huizhi était un des calligraphes chinois les plus renommés.)
 
 Un soir, il neigea. Huizhi se réveilla : il faisait encore nuit. Il ouvrit la porte, et ordonna à son domestique de préparer du vin.
@@ -21,5 +19,7 @@ Peu importait. Il sortit, monta dans un petit bateau et partit. Il lui fallut to
 Il revint sur ses pas et rentra chez lui.
 
 On fut surpris et on lui demanda : mais pourquoi n’êtes-vous pas entré ? Vous avez parcouru tout ce chemin pour le voir ! Il répondit : j’avais l’envie de le voir et j’ai bien profité de cette envie. Maintenant, je n'en ai plus envie et je suis de retour. Le voir ou pas, ce n’est pas ce qui compte.
+
+<!--more-->
 
 王子猷居山阴。夜大雪，眠觉，开室命酌酒，四望皎然；因起彷徨，咏左思《招隐》诗，忽忆戴安道。时戴在剡，即便夜乘小船就之，经宿方至，造门不前而返。人问其故，王曰：吾本乘兴而行，兴尽而返，何必见戴。

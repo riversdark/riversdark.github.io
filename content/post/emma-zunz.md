@@ -1,6 +1,7 @@
 +++
 title = "Emma Zunz"
 date = 2021-06-09
+lastmod = 2021-07-11
 categories = ["French", "Literature"]
 draft = false
 +++
@@ -13,7 +14,7 @@ Emma laissa tomber la lettre. Le premier sentiment, c’est un éboulement dans 
 
 (Des paragraphes omis. Emma prépare son plan de vengeance, une vengeance pour un père qui ne le mérite guère.)
 
-Pendant ce temps, qui est hors du temps, dans le déferlement des sensations fragmentées et horribles, a-t-elle pensé, même pour une seule fois, à la mort qui a inspiré son sacrifice ? A mon avis, elle a réfléchi une fois, et c’était assez pour mettre son but désespéré en danger. Elle pensait (elle ne pouvait pas s'en empêcher) que son père avait fait à sa mère la même chose horrible comme ce qu’était fait à elle en ce moment. Elle y réfléchit avec un étonnement faible et puis, immédiatement, se mit à l’abri dans la vertige. L’homme-un Suédois ou un finlandais, peu importe-ne parle pas l’espagnol; il était un simple instrument pour Emma, tout comme elle pour lui-mais elle était utilisée pour le plaisir et lui, il était pour la justice.
+Pendant ce temps, qui est d'ailleurs hors du temps, dans le déferlement des sensations fragmentées et horribles, a-t-elle pensé, même pour une seule fois, à la mort qui a inspiré son sacrifice ? A mon avis, elle a réfléchi une fois, et c’était assez pour mettre son but désespéré en danger. Elle pensait (elle ne pouvait pas s'en empêcher) que son père avait fait à sa mère la même chose horrible comme ce qu’était fait à elle en ce moment. Elle y réfléchit avec un étonnement faible et puis, immédiatement, se mit à l’abri dans la vertige. L’homme-un Suédois ou un finlandais, peu importe-ne parle pas l’espagnol; il était un simple instrument pour Emma, tout comme elle pour lui-mais elle était utilisée pour le plaisir et lui, il était pour la justice.
 
 (Des paragraphes omis. Emma exécute son plan de vengeance qui s’agit un viol par un homme différent qu’était identifié, et une meurtre pour une cause différente qu’était présentée.)
 

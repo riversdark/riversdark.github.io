@@ -1,0 +1,10 @@
+---
+title: "Culture"
+listing: 
+  contents: culture 
+  type: default 
+  sort: "date desc"
+  categories: true 
+---
+
+Every now and then I also write about this and that of little interest and no significance.

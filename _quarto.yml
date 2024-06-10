@@ -1,0 +1,22 @@
+project:
+  type: website
+  output-dir: docs
+
+website:
+  title: "Lottery of Babylonian Variations"
+  navbar:
+    search: true
+    left:
+      - href: index.qmd
+        text: Home
+      - stats.qmd
+      - culture.qmd
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+
+
+

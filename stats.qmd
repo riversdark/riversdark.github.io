@@ -1,0 +1,10 @@
+---
+title: "Stats"
+listing: 
+  contents: stats 
+  type: grid 
+  sort: "date desc"
+  categories: true 
+---
+
+Bayesian statistics, machine learning, everything thereof and beyond.

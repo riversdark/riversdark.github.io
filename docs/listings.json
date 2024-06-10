@@ -1,7 +1,9 @@
 [
   {
     "listing": "/stats.html",
-    "items": []
+    "items": [
+      "/stats/eight.html"
+    ]
   },
   {
     "listing": "/culture.html",

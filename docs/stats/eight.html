@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.43">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2022-06-22">
+<meta name="description" content="Robust HMC inference using variable reparameterisation">
+
+<title>Lottery of Babylonian Variations – Eight Schools in NumPyro</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Lottery of Babylonian Variations</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../stats.html"> 
+<span class="menu-text">Stats</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../culture.html"> 
+<span class="menu-text">Culture</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-baseline-model" id="toc-the-baseline-model" class="nav-link active" data-scroll-target="#the-baseline-model">The baseline model</a></li>
+  <li><a href="#manual-reparameterisation" id="toc-manual-reparameterisation" class="nav-link" data-scroll-target="#manual-reparameterisation">Manual reparameterisation</a></li>
+  <li><a href="#using-numpyros-reparameterisation-handler" id="toc-using-numpyros-reparameterisation-handler" class="nav-link" data-scroll-target="#using-numpyros-reparameterisation-handler">Using numpyro’s reparameterisation handler</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Eight Schools in NumPyro</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">numpyro</div>
+    <div class="quarto-category">Bayesian</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    Robust HMC inference using variable reparameterisation
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 22, 2022</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This is an introduction to NumPyro, using the Eight Schools model as example.</p>
+<p>Here we demonstrate the effects of model reparameterisation. Reparameterisation is especially important in hierarchical models, where the joint density tend to have high curvatures.</p>
+<div id="b8373ad5" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> jax.numpy <span class="im">as</span> jnp</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpyro</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpyro.distributions <span class="im">as</span> dist</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> jax <span class="im">import</span> random</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> numpyro.infer <span class="im">import</span> MCMC, NUTS, Predictive</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>rng_key <span class="op">=</span> random.PRNGKey(<span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>2024-06-10 19:11:54.689145: W external/xla/xla/service/gpu/nvptx_compiler.cc:760] The NVIDIA driver's CUDA version is 12.2 which is older than the ptxas CUDA version (12.5.40). Because the driver is older than the ptxas version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.</code></pre>
+</div>
+</div>
+<p>Here we are using the classic eight schools dataset from Gelman et al.&nbsp;We have collected the test score statistics for eight schools, including the mean and standard error. The goal, is to determine whether some schools have done better than others. Note that since we are working with the mean and standard error of eight different schools, we are actually modeling the statistical analysis resutls of some other people: this is essentially a meta analysis problem.</p>
+<div id="2fa3b05b" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>J <span class="op">=</span> <span class="dv">8</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> np.array([<span class="fl">28.0</span>, <span class="fl">8.0</span>, <span class="op">-</span><span class="fl">3.0</span>, <span class="fl">7.0</span>, <span class="op">-</span><span class="fl">1.0</span>, <span class="fl">1.0</span>, <span class="fl">18.0</span>, <span class="fl">12.0</span>])</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>sigma <span class="op">=</span> np.array([<span class="fl">15.0</span>, <span class="fl">10.0</span>, <span class="fl">16.0</span>, <span class="fl">11.0</span>, <span class="fl">9.0</span>, <span class="fl">11.0</span>, <span class="fl">10.0</span>, <span class="fl">18.0</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Visualize the data.</p>
+<div id="c9aebb08" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> seaborn <span class="im">as</span> sns</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy.stats <span class="im">import</span> norm</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>sns.set_theme()</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>sns.set_palette(<span class="st">"Set2"</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>fig, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">4</span>))</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.linspace(<span class="op">-</span><span class="dv">50</span>, <span class="dv">70</span>, <span class="dv">1000</span>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> mean, sd <span class="kw">in</span> <span class="bu">zip</span>(y, sigma):</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    ax.plot(x, norm.pdf(x, mean, sd))</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">'Test Score from Eight Schools'</span>)</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>plt.savefig(<span class="st">'fig/eight.png'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="eight_files/figure-html/cell-4-output-1.png" width="660" height="362" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="the-baseline-model" class="level2">
+<h2 class="anchored" data-anchor-id="the-baseline-model">The baseline model</h2>
+<p>The model we are building is a standard hierarchical model. We assume that the observed school means represent their true mean <span class="math inline">\(\theta_n\)</span>, but corrupted with some Normal noise, and the true means are themselves drawn from another district level distribution, with mean <span class="math inline">\(\mu\)</span> and standard deviation <span class="math inline">\(\tau\)</span>, which are also modeled with suitable distributions. Essentially it’s Gaussian all the way up, and we have three different levels to consider: student, school, and the whole district level population.</p>
+<p><span class="math display">\[
+\begin{align*}
+y_n &amp;\sim \text{N} (\theta_n, \sigma_n) \\
+\theta_n &amp;\sim \text{N} (\mu, \tau) \\
+\mu &amp;\sim \text{N} (0, 5) \\
+\tau &amp;\sim \text{HalfCauchy} (5).
+\end{align*}
+\]</span></p>
+<p>In NumPyro models are coded as functions.</p>
+<div id="df722fc3" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> es_0(J, sigma):</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    mu <span class="op">=</span> numpyro.sample(<span class="st">'mu'</span>, dist.Normal(<span class="dv">0</span>, <span class="dv">5</span>))</span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    tau <span class="op">=</span> numpyro.sample(<span class="st">'tau'</span>, dist.HalfCauchy(<span class="dv">5</span>))</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> numpyro.plate(<span class="st">'J'</span>, J):</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>        theta <span class="op">=</span> numpyro.sample(<span class="st">'theta'</span>, dist.Normal(mu, tau))</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>        numpyro.sample(<span class="st">'obs'</span>, dist.Normal(theta, sigma))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Note that the code and the mathematical model are almost identical, except that they go in different directions. In the mathematical model, we start with the observed data, and reason backward to determine how they might be generated. In the code we start with the hyperparameters, and move forward to generate the observed data.</p>
+<p><code>J</code> and <code>sigma</code> are data we used to build our model, but they are not part of the model, in the sense that they are not assigned any probability distribution. <code>y</code>, on the other hand, is the central variable of the model, and is named <code>obs</code> in the model.</p>
+<p><code>numpyro.plate</code> is used to denote that the variables inside the plate are conditionally independent. Probability distributions are the building blocks of Bayesian models, and NumPyro has a lot of them. In NunPyro, probability distributions are wrappers of JAX random number generators, and they are translated into sampling statements using the <code>numpyro.sample</code> primitive.</p>
+<p>However <code>numpyro.sample</code> is used to define the model, not to draw samples from the distribution. To actually draw samples from a distribution, we use <code>numpyro.infer.Predictive</code>. In numpyro each model defines a joint distribution, and since it’s a probability distribution, we can draw samples from it. And since we haven’t conditioned on any data, the samples we draw are from the prior distribution.</p>
+<p>Sampling directly from the prior distribution, and inspect the samples, is a good way to check if the model is correctly defined.</p>
+<div id="aeafc06e" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>es_prior_predictive_0 <span class="op">=</span> Predictive(es_0, num_samples<span class="op">=</span><span class="dv">1000</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>es_prior_samples_0 <span class="op">=</span> es_prior_predictive_0(rng_key, J, sigma)</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> print_stats(name, samples):</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Variable: </span><span class="sc">{</span>name<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Shape: </span><span class="sc">{</span>samples<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Mean: </span><span class="sc">{</span>jnp<span class="sc">.</span>mean(samples, axis<span class="op">=</span><span class="dv">0</span>)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"  Variance: </span><span class="sc">{</span>jnp<span class="sc">.</span>var(samples, axis<span class="op">=</span><span class="dv">0</span>)<span class="sc">}</span><span class="ch">\n</span><span class="ss">"</span>)</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># Print statistics for each variable</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>print_stats(<span class="st">'mu'</span>, es_prior_samples_0[<span class="st">'mu'</span>])</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>print_stats(<span class="st">'tau'</span>, es_prior_samples_0[<span class="st">'tau'</span>])</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>print_stats(<span class="st">'theta'</span>, es_prior_samples_0[<span class="st">'theta'</span>])</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>print_stats(<span class="st">'obs'</span>, es_prior_samples_0[<span class="st">'obs'</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Variable: mu
+  Shape: (1000,)
+  Mean: -0.16857339441776276
+  Variance: 26.169570922851562
+
+Variable: tau
+  Shape: (1000,)
+  Mean: 19.337650299072266
+  Variance: 10626.4833984375
+
+Variable: theta
+  Shape: (1000, 8)
+  Mean: [-1.2455076   2.9482472  -5.281853   -0.06498987  2.3573008   0.31068215
+  3.729895   -1.5531777 ]
+  Variance: [11408.184   8016.4224 36956.      8181.7744  7636.8813  9586.139
+  6544.6753 26078.693 ]
+
+Variable: obs
+  Shape: (1000, 8)
+  Mean: [-1.7466605   2.9530644  -4.942445    0.10836948  2.5812457   0.34208587
+  3.1065757  -2.218382  ]
+  Variance: [11653.146   8119.2095 37439.16    8326.833   7699.3613  9800.354
+  6728.329  26469.115 ]
+</code></pre>
+</div>
+</div>
+<p>When the samples of some variables are observed, we can condition on these observations, and infer the conditional distributions of the other variables. This process is called inference, and is commonly done using MCMC methods. The conditioning is done using the <code>numpyro.handlers.condition</code> primitive, by feeding it a data dict and the model.</p>
+<p>Since we have a GPU available, we will also configure the MCMC sampler to use vectorized chains.</p>
+<div id="80985dc5" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> numpyro.handlers <span class="im">import</span> condition</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>mcmc_args <span class="op">=</span> {</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">'num_warmup'</span>: <span class="dv">1000</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">'num_samples'</span>: <span class="dv">5000</span>,</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">'num_chains'</span>: <span class="dv">8</span>,</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">'progress_bar'</span>: <span class="va">True</span>,</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">'chain_method'</span>: <span class="st">'vectorized'</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>es_conditioned_0 <span class="op">=</span> condition(es_0, data<span class="op">=</span>{<span class="st">'obs'</span>: y})</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>es_nuts_0 <span class="op">=</span> NUTS(es_conditioned_0)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>es_mcmc_0 <span class="op">=</span> MCMC(es_nuts_0, <span class="op">**</span>mcmc_args)</span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a>es_mcmc_0.run(rng_key, J, sigma)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  0%|          | 0/6000 [00:00&lt;?, ?it/s]warmup:   0%|          | 1/6000 [00:01&lt;2:54:40,  1.75s/it]warmup:   0%|          | 5/6000 [00:01&lt;30:21,  3.29it/s]  warmup:   0%|          | 7/6000 [00:02&lt;24:32,  4.07it/s]warmup:   0%|          | 10/6000 [00:02&lt;15:18,  6.52it/s]warmup:   0%|          | 12/6000 [00:02&lt;12:25,  8.03it/s]warmup:   0%|          | 14/6000 [00:02&lt;10:45,  9.27it/s]warmup:   0%|          | 17/6000 [00:02&lt;08:39, 11.52it/s]warmup:   0%|          | 19/6000 [00:02&lt;07:40, 12.99it/s]warmup:   0%|          | 21/6000 [00:02&lt;07:05, 14.05it/s]warmup:   0%|          | 23/6000 [00:03&lt;07:05, 14.03it/s]warmup:   0%|          | 27/6000 [00:03&lt;05:46, 17.25it/s]warmup:   0%|          | 29/6000 [00:03&lt;05:40, 17.53it/s]warmup:   1%|          | 32/6000 [00:03&lt;04:54, 20.25it/s]warmup:   1%|          | 39/6000 [00:03&lt;03:11, 31.20it/s]warmup:   1%|          | 43/6000 [00:03&lt;03:03, 32.52it/s]warmup:   1%|          | 47/6000 [00:03&lt;02:54, 34.14it/s]warmup:   1%|          | 51/6000 [00:03&lt;02:53, 34.30it/s]warmup:   1%|          | 55/6000 [00:04&lt;03:08, 31.60it/s]warmup:   1%|          | 59/6000 [00:04&lt;03:40, 26.88it/s]warmup:   1%|          | 64/6000 [00:04&lt;03:14, 30.47it/s]warmup:   1%|          | 68/6000 [00:04&lt;03:43, 26.56it/s]warmup:   1%|          | 71/6000 [00:04&lt;04:39, 21.18it/s]warmup:   1%|▏         | 76/6000 [00:05&lt;03:52, 25.44it/s]warmup:   1%|▏         | 80/6000 [00:05&lt;03:29, 28.23it/s]warmup:   1%|▏         | 84/6000 [00:05&lt;03:22, 29.15it/s]warmup:   1%|▏         | 88/6000 [00:05&lt;03:23, 29.12it/s]warmup:   2%|▏         | 92/6000 [00:05&lt;03:24, 28.88it/s]warmup:   2%|▏         | 96/6000 [00:05&lt;03:12, 30.70it/s]warmup:   2%|▏         | 104/6000 [00:05&lt;02:17, 42.75it/s]warmup:   2%|▏         | 116/6000 [00:05&lt;01:36, 61.04it/s]warmup:   2%|▏         | 127/6000 [00:05&lt;01:21, 72.27it/s]warmup:   2%|▏         | 138/6000 [00:06&lt;01:12, 81.33it/s]warmup:   2%|▏         | 149/6000 [00:06&lt;01:05, 89.11it/s]warmup:   3%|▎         | 160/6000 [00:06&lt;01:03, 92.05it/s]warmup:   3%|▎         | 170/6000 [00:06&lt;01:17, 75.07it/s]warmup:   3%|▎         | 181/6000 [00:06&lt;01:09, 83.45it/s]warmup:   3%|▎         | 194/6000 [00:06&lt;01:00, 95.31it/s]warmup:   3%|▎         | 208/6000 [00:06&lt;00:57, 101.12it/s]warmup:   4%|▎         | 219/6000 [00:06&lt;01:03, 91.58it/s] warmup:   4%|▍         | 233/6000 [00:07&lt;00:57, 101.03it/s]warmup:   4%|▍         | 246/6000 [00:07&lt;00:54, 106.32it/s]warmup:   4%|▍         | 262/6000 [00:07&lt;00:49, 115.19it/s]warmup:   5%|▍         | 274/6000 [00:07&lt;00:57, 99.66it/s] warmup:   5%|▍         | 285/6000 [00:07&lt;01:39, 57.19it/s]warmup:   5%|▍         | 294/6000 [00:08&lt;02:25, 39.16it/s]warmup:   5%|▌         | 301/6000 [00:08&lt;03:23, 27.94it/s]warmup:   5%|▌         | 307/6000 [00:08&lt;03:01, 31.33it/s]warmup:   5%|▌         | 314/6000 [00:09&lt;02:38, 35.95it/s]warmup:   5%|▌         | 320/6000 [00:09&lt;02:31, 37.42it/s]warmup:   6%|▌         | 333/6000 [00:09&lt;01:47, 52.87it/s]warmup:   6%|▌         | 346/6000 [00:09&lt;01:23, 67.42it/s]warmup:   6%|▌         | 361/6000 [00:09&lt;01:06, 84.89it/s]warmup:   6%|▋         | 380/6000 [00:09&lt;00:52, 108.08it/s]warmup:   7%|▋         | 397/6000 [00:09&lt;00:45, 122.21it/s]warmup:   7%|▋         | 417/6000 [00:09&lt;00:39, 142.02it/s]warmup:   7%|▋         | 436/6000 [00:09&lt;00:36, 153.87it/s]warmup:   8%|▊         | 453/6000 [00:10&lt;00:36, 152.34it/s]warmup:   8%|▊         | 469/6000 [00:10&lt;00:55, 100.18it/s]warmup:   8%|▊         | 482/6000 [00:10&lt;01:02, 88.54it/s] warmup:   8%|▊         | 493/6000 [00:10&lt;01:01, 89.00it/s]warmup:   8%|▊         | 504/6000 [00:10&lt;01:01, 89.85it/s]warmup:   9%|▊         | 517/6000 [00:10&lt;00:56, 97.19it/s]warmup:   9%|▉         | 537/6000 [00:10&lt;00:45, 121.28it/s]warmup:   9%|▉         | 554/6000 [00:11&lt;00:41, 131.67it/s]warmup:   9%|▉         | 569/6000 [00:11&lt;00:39, 136.00it/s]warmup:  10%|▉         | 590/6000 [00:11&lt;00:35, 154.57it/s]warmup:  10%|█         | 610/6000 [00:11&lt;00:32, 167.09it/s]warmup:  10%|█         | 628/6000 [00:11&lt;00:32, 165.55it/s]warmup:  11%|█         | 649/6000 [00:11&lt;00:30, 175.96it/s]warmup:  11%|█         | 667/6000 [00:11&lt;00:32, 165.02it/s]warmup:  11%|█▏        | 685/6000 [00:11&lt;00:31, 166.90it/s]warmup:  12%|█▏        | 706/6000 [00:11&lt;00:29, 177.92it/s]warmup:  12%|█▏        | 725/6000 [00:12&lt;00:29, 180.43it/s]warmup:  12%|█▏        | 744/6000 [00:12&lt;00:31, 168.90it/s]warmup:  13%|█▎        | 763/6000 [00:12&lt;00:30, 173.71it/s]warmup:  13%|█▎        | 781/6000 [00:12&lt;00:32, 158.21it/s]warmup:  13%|█▎        | 798/6000 [00:12&lt;00:32, 158.62it/s]warmup:  14%|█▎        | 817/6000 [00:12&lt;00:31, 163.75it/s]warmup:  14%|█▍        | 836/6000 [00:12&lt;00:30, 170.93it/s]warmup:  14%|█▍        | 854/6000 [00:12&lt;00:30, 170.85it/s]warmup:  15%|█▍        | 872/6000 [00:12&lt;00:30, 169.38it/s]warmup:  15%|█▍        | 894/6000 [00:13&lt;00:28, 180.56it/s]warmup:  15%|█▌        | 913/6000 [00:13&lt;00:28, 181.16it/s]warmup:  16%|█▌        | 932/6000 [00:13&lt;00:29, 173.97it/s]warmup:  16%|█▌        | 954/6000 [00:13&lt;00:28, 179.69it/s]warmup:  16%|█▌        | 973/6000 [00:13&lt;00:37, 133.76it/s]warmup:  16%|█▋        | 989/6000 [00:13&lt;00:40, 124.54it/s]sample:  17%|█▋        | 1005/6000 [00:13&lt;00:37, 131.90it/s]sample:  17%|█▋        | 1028/6000 [00:13&lt;00:32, 155.11it/s]sample:  18%|█▊        | 1050/6000 [00:14&lt;00:29, 170.36it/s]sample:  18%|█▊        | 1075/6000 [00:14&lt;00:26, 189.42it/s]sample:  18%|█▊        | 1096/6000 [00:14&lt;00:25, 194.61it/s]sample:  19%|█▊        | 1117/6000 [00:14&lt;00:24, 198.18it/s]sample:  19%|█▉        | 1138/6000 [00:14&lt;00:24, 199.07it/s]sample:  19%|█▉        | 1160/6000 [00:14&lt;00:23, 204.57it/s]sample:  20%|█▉        | 1181/6000 [00:14&lt;00:24, 195.46it/s]sample:  20%|██        | 1201/6000 [00:14&lt;00:24, 193.14it/s]sample:  20%|██        | 1221/6000 [00:14&lt;00:24, 191.26it/s]sample:  21%|██        | 1242/6000 [00:15&lt;00:24, 194.66it/s]sample:  21%|██        | 1262/6000 [00:15&lt;00:24, 192.10it/s]sample:  21%|██▏       | 1288/6000 [00:15&lt;00:22, 210.41it/s]sample:  22%|██▏       | 1313/6000 [00:15&lt;00:21, 221.46it/s]sample:  22%|██▏       | 1336/6000 [00:15&lt;00:23, 202.20it/s]sample:  23%|██▎       | 1357/6000 [00:15&lt;00:23, 200.55it/s]sample:  23%|██▎       | 1378/6000 [00:15&lt;00:23, 199.43it/s]sample:  23%|██▎       | 1399/6000 [00:15&lt;00:23, 199.27it/s]sample:  24%|██▎       | 1422/6000 [00:15&lt;00:22, 202.01it/s]sample:  24%|██▍       | 1443/6000 [00:16&lt;00:23, 194.73it/s]sample:  24%|██▍       | 1463/6000 [00:16&lt;00:23, 191.77it/s]sample:  25%|██▍       | 1487/6000 [00:16&lt;00:22, 204.54it/s]sample:  25%|██▌       | 1508/6000 [00:16&lt;00:22, 198.07it/s]sample:  25%|██▌       | 1528/6000 [00:16&lt;00:22, 196.04it/s]sample:  26%|██▌       | 1548/6000 [00:16&lt;00:22, 194.46it/s]sample:  26%|██▌       | 1572/6000 [00:16&lt;00:21, 206.15it/s]sample:  27%|██▋       | 1596/6000 [00:16&lt;00:20, 214.72it/s]sample:  27%|██▋       | 1620/6000 [00:16&lt;00:19, 220.36it/s]sample:  27%|██▋       | 1643/6000 [00:16&lt;00:20, 209.75it/s]sample:  28%|██▊       | 1668/6000 [00:17&lt;00:19, 217.24it/s]sample:  28%|██▊       | 1691/6000 [00:17&lt;00:19, 220.49it/s]sample:  29%|██▊       | 1714/6000 [00:17&lt;00:19, 215.38it/s]sample:  29%|██▉       | 1736/6000 [00:17&lt;00:20, 209.20it/s]sample:  29%|██▉       | 1760/6000 [00:17&lt;00:19, 215.81it/s]sample:  30%|██▉       | 1782/6000 [00:17&lt;00:20, 207.87it/s]sample:  30%|███       | 1804/6000 [00:17&lt;00:19, 211.11it/s]sample:  30%|███       | 1826/6000 [00:17&lt;00:20, 206.59it/s]sample:  31%|███       | 1847/6000 [00:17&lt;00:20, 199.56it/s]sample:  31%|███       | 1868/6000 [00:18&lt;00:20, 200.93it/s]sample:  31%|███▏      | 1889/6000 [00:18&lt;00:20, 202.69it/s]sample:  32%|███▏      | 1910/6000 [00:18&lt;00:20, 202.37it/s]sample:  32%|███▏      | 1931/6000 [00:18&lt;00:20, 202.42it/s]sample:  33%|███▎      | 1952/6000 [00:18&lt;00:19, 204.16it/s]sample:  33%|███▎      | 1973/6000 [00:18&lt;00:19, 204.46it/s]sample:  33%|███▎      | 1994/6000 [00:18&lt;00:19, 201.22it/s]sample:  34%|███▎      | 2015/6000 [00:18&lt;00:19, 201.42it/s]sample:  34%|███▍      | 2036/6000 [00:18&lt;00:19, 199.34it/s]sample:  34%|███▍      | 2061/6000 [00:18&lt;00:18, 212.62it/s]sample:  35%|███▍      | 2083/6000 [00:19&lt;00:18, 210.96it/s]sample:  35%|███▌      | 2105/6000 [00:19&lt;00:18, 209.99it/s]sample:  35%|███▌      | 2129/6000 [00:19&lt;00:17, 216.91it/s]sample:  36%|███▌      | 2151/6000 [00:19&lt;00:17, 217.00it/s]sample:  36%|███▌      | 2173/6000 [00:19&lt;00:18, 211.97it/s]sample:  37%|███▋      | 2195/6000 [00:19&lt;00:18, 205.92it/s]sample:  37%|███▋      | 2218/6000 [00:19&lt;00:17, 210.48it/s]sample:  37%|███▋      | 2240/6000 [00:19&lt;00:18, 203.49it/s]sample:  38%|███▊      | 2261/6000 [00:19&lt;00:18, 198.88it/s]sample:  38%|███▊      | 2281/6000 [00:20&lt;00:19, 188.18it/s]sample:  38%|███▊      | 2301/6000 [00:20&lt;00:19, 189.71it/s]sample:  39%|███▊      | 2321/6000 [00:20&lt;00:19, 190.88it/s]sample:  39%|███▉      | 2341/6000 [00:20&lt;00:18, 193.22it/s]sample:  39%|███▉      | 2361/6000 [00:20&lt;00:19, 184.85it/s]sample:  40%|███▉      | 2384/6000 [00:20&lt;00:18, 197.33it/s]sample:  40%|████      | 2406/6000 [00:20&lt;00:17, 203.62it/s]sample:  40%|████      | 2427/6000 [00:20&lt;00:17, 202.39it/s]sample:  41%|████      | 2448/6000 [00:20&lt;00:17, 200.81it/s]sample:  41%|████      | 2469/6000 [00:21&lt;00:18, 194.61it/s]sample:  42%|████▏     | 2493/6000 [00:21&lt;00:17, 202.21it/s]sample:  42%|████▏     | 2517/6000 [00:21&lt;00:16, 210.52it/s]sample:  42%|████▏     | 2539/6000 [00:21&lt;00:16, 209.43it/s]sample:  43%|████▎     | 2560/6000 [00:21&lt;00:16, 207.36it/s]sample:  43%|████▎     | 2581/6000 [00:21&lt;00:16, 204.97it/s]sample:  43%|████▎     | 2602/6000 [00:21&lt;00:17, 197.16it/s]sample:  44%|████▍     | 2625/6000 [00:21&lt;00:16, 204.43it/s]sample:  44%|████▍     | 2648/6000 [00:21&lt;00:15, 211.20it/s]sample:  45%|████▍     | 2673/6000 [00:21&lt;00:15, 220.03it/s]sample:  45%|████▍     | 2699/6000 [00:22&lt;00:14, 227.99it/s]sample:  45%|████▌     | 2725/6000 [00:22&lt;00:13, 235.68it/s]sample:  46%|████▌     | 2749/6000 [00:22&lt;00:14, 225.73it/s]sample:  46%|████▌     | 2772/6000 [00:22&lt;00:14, 217.42it/s]sample:  47%|████▋     | 2794/6000 [00:22&lt;00:14, 216.82it/s]sample:  47%|████▋     | 2816/6000 [00:22&lt;00:15, 208.57it/s]sample:  47%|████▋     | 2837/6000 [00:22&lt;00:15, 199.59it/s]sample:  48%|████▊     | 2861/6000 [00:22&lt;00:14, 210.06it/s]sample:  48%|████▊     | 2886/6000 [00:22&lt;00:14, 220.15it/s]sample:  48%|████▊     | 2909/6000 [00:23&lt;00:14, 216.74it/s]sample:  49%|████▉     | 2931/6000 [00:23&lt;00:14, 212.09it/s]sample:  49%|████▉     | 2953/6000 [00:23&lt;00:14, 205.55it/s]sample:  50%|████▉     | 2979/6000 [00:23&lt;00:13, 219.68it/s]sample:  50%|█████     | 3002/6000 [00:23&lt;00:14, 213.52it/s]sample:  50%|█████     | 3024/6000 [00:23&lt;00:14, 209.11it/s]sample:  51%|█████     | 3047/6000 [00:23&lt;00:13, 212.93it/s]sample:  51%|█████     | 3069/6000 [00:23&lt;00:13, 214.71it/s]sample:  52%|█████▏    | 3091/6000 [00:23&lt;00:14, 207.72it/s]sample:  52%|█████▏    | 3112/6000 [00:24&lt;00:14, 192.81it/s]sample:  52%|█████▏    | 3136/6000 [00:24&lt;00:14, 203.71it/s]sample:  53%|█████▎    | 3160/6000 [00:24&lt;00:13, 211.94it/s]sample:  53%|█████▎    | 3182/6000 [00:24&lt;00:13, 211.91it/s]sample:  53%|█████▎    | 3204/6000 [00:24&lt;00:13, 210.05it/s]sample:  54%|█████▍    | 3226/6000 [00:24&lt;00:13, 208.11it/s]sample:  54%|█████▍    | 3247/6000 [00:24&lt;00:13, 200.80it/s]sample:  55%|█████▍    | 3270/6000 [00:24&lt;00:13, 208.14it/s]sample:  55%|█████▍    | 3291/6000 [00:24&lt;00:13, 203.91it/s]sample:  55%|█████▌    | 3312/6000 [00:25&lt;00:13, 204.82it/s]sample:  56%|█████▌    | 3333/6000 [00:25&lt;00:13, 205.03it/s]sample:  56%|█████▌    | 3354/6000 [00:25&lt;00:12, 204.53it/s]sample:  56%|█████▋    | 3378/6000 [00:25&lt;00:12, 214.23it/s]sample:  57%|█████▋    | 3400/6000 [00:25&lt;00:12, 210.91it/s]sample:  57%|█████▋    | 3422/6000 [00:25&lt;00:13, 185.66it/s]sample:  57%|█████▋    | 3442/6000 [00:25&lt;00:13, 185.88it/s]sample:  58%|█████▊    | 3463/6000 [00:25&lt;00:13, 190.59it/s]sample:  58%|█████▊    | 3483/6000 [00:25&lt;00:13, 191.40it/s]sample:  58%|█████▊    | 3505/6000 [00:26&lt;00:12, 197.73it/s]sample:  59%|█████▉    | 3528/6000 [00:26&lt;00:12, 204.83it/s]sample:  59%|█████▉    | 3551/6000 [00:26&lt;00:11, 211.00it/s]sample:  60%|█████▉    | 3573/6000 [00:26&lt;00:11, 213.54it/s]sample:  60%|█████▉    | 3595/6000 [00:26&lt;00:11, 207.29it/s]sample:  60%|██████    | 3616/6000 [00:26&lt;00:12, 197.38it/s]sample:  61%|██████    | 3638/6000 [00:26&lt;00:11, 201.72it/s]sample:  61%|██████    | 3661/6000 [00:26&lt;00:11, 207.40it/s]sample:  61%|██████▏   | 3682/6000 [00:26&lt;00:11, 203.85it/s]sample:  62%|██████▏   | 3705/6000 [00:26&lt;00:10, 210.49it/s]sample:  62%|██████▏   | 3728/6000 [00:27&lt;00:10, 211.01it/s]sample:  63%|██████▎   | 3751/6000 [00:27&lt;00:10, 213.52it/s]sample:  63%|██████▎   | 3773/6000 [00:27&lt;00:10, 212.31it/s]sample:  63%|██████▎   | 3795/6000 [00:27&lt;00:10, 210.49it/s]sample:  64%|██████▎   | 3819/6000 [00:27&lt;00:10, 217.26it/s]sample:  64%|██████▍   | 3841/6000 [00:27&lt;00:10, 213.05it/s]sample:  64%|██████▍   | 3863/6000 [00:27&lt;00:10, 212.87it/s]sample:  65%|██████▍   | 3885/6000 [00:27&lt;00:09, 213.83it/s]sample:  65%|██████▌   | 3907/6000 [00:27&lt;00:10, 206.89it/s]sample:  66%|██████▌   | 3930/6000 [00:28&lt;00:09, 209.89it/s]sample:  66%|██████▌   | 3952/6000 [00:28&lt;00:09, 211.08it/s]sample:  66%|██████▌   | 3974/6000 [00:28&lt;00:09, 206.98it/s]sample:  67%|██████▋   | 3997/6000 [00:28&lt;00:09, 210.03it/s]sample:  67%|██████▋   | 4019/6000 [00:28&lt;00:09, 210.02it/s]sample:  67%|██████▋   | 4041/6000 [00:28&lt;00:09, 205.58it/s]sample:  68%|██████▊   | 4063/6000 [00:28&lt;00:09, 207.00it/s]sample:  68%|██████▊   | 4085/6000 [00:28&lt;00:09, 208.12it/s]sample:  68%|██████▊   | 4106/6000 [00:28&lt;00:09, 204.83it/s]sample:  69%|██████▉   | 4127/6000 [00:28&lt;00:09, 193.92it/s]sample:  69%|██████▉   | 4149/6000 [00:29&lt;00:09, 200.87it/s]sample:  70%|██████▉   | 4170/6000 [00:29&lt;00:09, 202.50it/s]sample:  70%|██████▉   | 4193/6000 [00:29&lt;00:08, 206.68it/s]sample:  70%|███████   | 4217/6000 [00:29&lt;00:08, 215.51it/s]sample:  71%|███████   | 4240/6000 [00:29&lt;00:08, 213.96it/s]sample:  71%|███████   | 4262/6000 [00:29&lt;00:08, 208.36it/s]sample:  71%|███████▏  | 4283/6000 [00:29&lt;00:08, 206.49it/s]sample:  72%|███████▏  | 4304/6000 [00:29&lt;00:08, 197.99it/s]sample:  72%|███████▏  | 4325/6000 [00:29&lt;00:08, 199.54it/s]sample:  72%|███████▏  | 4346/6000 [00:30&lt;00:08, 198.10it/s]sample:  73%|███████▎  | 4371/6000 [00:30&lt;00:07, 209.23it/s]sample:  73%|███████▎  | 4392/6000 [00:30&lt;00:08, 199.71it/s]sample:  74%|███████▎  | 4413/6000 [00:30&lt;00:08, 189.32it/s]sample:  74%|███████▍  | 4433/6000 [00:30&lt;00:08, 187.91it/s]sample:  74%|███████▍  | 4452/6000 [00:30&lt;00:08, 183.70it/s]sample:  75%|███████▍  | 4473/6000 [00:30&lt;00:08, 189.28it/s]sample:  75%|███████▍  | 4495/6000 [00:30&lt;00:07, 195.61it/s]sample:  75%|███████▌  | 4518/6000 [00:30&lt;00:07, 205.39it/s]sample:  76%|███████▌  | 4540/6000 [00:31&lt;00:06, 209.28it/s]sample:  76%|███████▌  | 4562/6000 [00:31&lt;00:07, 200.72it/s]sample:  76%|███████▋  | 4584/6000 [00:31&lt;00:06, 204.50it/s]sample:  77%|███████▋  | 4606/6000 [00:31&lt;00:06, 208.25it/s]sample:  77%|███████▋  | 4627/6000 [00:31&lt;00:06, 207.11it/s]sample:  77%|███████▋  | 4648/6000 [00:31&lt;00:06, 201.03it/s]sample:  78%|███████▊  | 4670/6000 [00:31&lt;00:06, 205.56it/s]sample:  78%|███████▊  | 4691/6000 [00:31&lt;00:06, 203.21it/s]sample:  79%|███████▊  | 4712/6000 [00:31&lt;00:06, 203.40it/s]sample:  79%|███████▉  | 4733/6000 [00:31&lt;00:06, 202.81it/s]sample:  79%|███████▉  | 4758/6000 [00:32&lt;00:05, 215.34it/s]sample:  80%|███████▉  | 4780/6000 [00:32&lt;00:05, 212.95it/s]sample:  80%|████████  | 4804/6000 [00:32&lt;00:05, 219.75it/s]sample:  80%|████████  | 4827/6000 [00:32&lt;00:05, 219.31it/s]sample:  81%|████████  | 4849/6000 [00:32&lt;00:05, 210.43it/s]sample:  81%|████████  | 4872/6000 [00:32&lt;00:05, 215.97it/s]sample:  82%|████████▏ | 4894/6000 [00:32&lt;00:05, 203.30it/s]sample:  82%|████████▏ | 4915/6000 [00:32&lt;00:05, 195.31it/s]sample:  82%|████████▏ | 4935/6000 [00:32&lt;00:05, 188.11it/s]sample:  83%|████████▎ | 4957/6000 [00:33&lt;00:05, 195.85it/s]sample:  83%|████████▎ | 4977/6000 [00:33&lt;00:05, 196.34it/s]sample:  83%|████████▎ | 5000/6000 [00:33&lt;00:04, 205.77it/s]sample:  84%|████████▍ | 5025/6000 [00:33&lt;00:04, 213.45it/s]sample:  84%|████████▍ | 5047/6000 [00:33&lt;00:04, 203.34it/s]sample:  85%|████████▍ | 5073/6000 [00:33&lt;00:04, 218.89it/s]sample:  85%|████████▍ | 5096/6000 [00:33&lt;00:04, 221.02it/s]sample:  85%|████████▌ | 5119/6000 [00:33&lt;00:03, 222.05it/s]sample:  86%|████████▌ | 5143/6000 [00:33&lt;00:03, 225.13it/s]sample:  86%|████████▌ | 5166/6000 [00:34&lt;00:03, 215.98it/s]sample:  86%|████████▋ | 5190/6000 [00:34&lt;00:03, 221.73it/s]sample:  87%|████████▋ | 5213/6000 [00:34&lt;00:03, 215.25it/s]sample:  87%|████████▋ | 5235/6000 [00:34&lt;00:03, 204.76it/s]sample:  88%|████████▊ | 5256/6000 [00:34&lt;00:03, 189.24it/s]sample:  88%|████████▊ | 5279/6000 [00:34&lt;00:03, 199.39it/s]sample:  88%|████████▊ | 5300/6000 [00:34&lt;00:03, 199.67it/s]sample:  89%|████████▊ | 5324/6000 [00:34&lt;00:03, 210.32it/s]sample:  89%|████████▉ | 5349/6000 [00:34&lt;00:02, 221.24it/s]sample:  90%|████████▉ | 5372/6000 [00:35&lt;00:02, 214.01it/s]sample:  90%|████████▉ | 5395/6000 [00:35&lt;00:02, 217.75it/s]sample:  90%|█████████ | 5419/6000 [00:35&lt;00:02, 221.46it/s]sample:  91%|█████████ | 5442/6000 [00:35&lt;00:02, 218.54it/s]sample:  91%|█████████ | 5468/6000 [00:35&lt;00:02, 228.33it/s]sample:  92%|█████████▏| 5491/6000 [00:35&lt;00:02, 224.82it/s]sample:  92%|█████████▏| 5514/6000 [00:35&lt;00:02, 225.80it/s]sample:  92%|█████████▏| 5537/6000 [00:35&lt;00:02, 220.51it/s]sample:  93%|█████████▎| 5562/6000 [00:35&lt;00:01, 226.86it/s]sample:  93%|█████████▎| 5586/6000 [00:35&lt;00:01, 227.66it/s]sample:  93%|█████████▎| 5609/6000 [00:36&lt;00:01, 207.98it/s]sample:  94%|█████████▍| 5631/6000 [00:36&lt;00:01, 208.75it/s]sample:  94%|█████████▍| 5653/6000 [00:36&lt;00:01, 211.27it/s]sample:  95%|█████████▍| 5675/6000 [00:36&lt;00:01, 205.60it/s]sample:  95%|█████████▍| 5696/6000 [00:36&lt;00:01, 197.43it/s]sample:  95%|█████████▌| 5718/6000 [00:36&lt;00:01, 203.35it/s]sample:  96%|█████████▌| 5740/6000 [00:36&lt;00:01, 204.99it/s]sample:  96%|█████████▌| 5762/6000 [00:36&lt;00:01, 206.93it/s]sample:  96%|█████████▋| 5784/6000 [00:36&lt;00:01, 209.24it/s]sample:  97%|█████████▋| 5806/6000 [00:37&lt;00:00, 210.40it/s]sample:  97%|█████████▋| 5828/6000 [00:37&lt;00:00, 209.96it/s]sample:  98%|█████████▊| 5850/6000 [00:37&lt;00:00, 204.30it/s]sample:  98%|█████████▊| 5874/6000 [00:37&lt;00:00, 214.22it/s]sample:  98%|█████████▊| 5896/6000 [00:37&lt;00:00, 206.69it/s]sample:  99%|█████████▊| 5917/6000 [00:37&lt;00:00, 204.86it/s]sample:  99%|█████████▉| 5938/6000 [00:37&lt;00:00, 196.80it/s]sample:  99%|█████████▉| 5959/6000 [00:37&lt;00:00, 200.38it/s]sample: 100%|█████████▉| 5980/6000 [00:37&lt;00:00, 197.71it/s]sample: 100%|██████████| 6000/6000 [00:38&lt;00:00, 157.88it/s]</code></pre>
+</div>
+</div>
+<p>The NUTS sampler is a variant of the Hamiltonian Monte Carlo (HMC) sampler, which is a powerful tool for sampling from complex probability distributions. HMC also comes with its own set of diagnostics, which can be used to check the convergence of the Markov Chain. The most important ones are the effective sample size and the Gelman-Rubin statistic, which is a measure of the convergence of the Markov Chain.</p>
+<div id="b26f2862" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>es_mcmc_0.print_summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+                mean       std    median      5.0%     95.0%     n_eff     r_hat
+        mu      4.26      3.34      4.25     -1.24      9.72   3163.83      1.00
+       tau      3.91      3.17      3.03      0.45      8.08   2151.46      1.01
+  theta[0]      6.26      5.81      5.64     -2.93     15.04   5795.74      1.00
+  theta[1]      4.86      4.78      4.74     -2.97     12.48   6468.43      1.00
+  theta[2]      3.71      5.40      3.97     -4.63     12.37   6937.61      1.00
+  theta[3]      4.66      4.94      4.55     -3.62     12.34   6752.22      1.00
+  theta[4]      3.41      4.71      3.64     -4.15     10.92   5415.63      1.00
+  theta[5]      3.86      4.97      4.01     -4.12     11.83   6923.98      1.00
+  theta[6]      6.36      5.27      5.75     -2.32     14.38   4727.40      1.00
+  theta[7]      4.72      5.50      4.59     -3.78     13.50   7525.65      1.00
+
+Number of divergences: 1327</code></pre>
+</div>
+</div>
+<p>The effective sample size for <span class="math inline">\(\tau\)</span> is low, and judging from the <code>r_hat</code> value, the Markov Chain might not have converged. Also, the large number of divergences is a sign that the model might not be well specified. Here we are looking at a prominent problem in hierarchical modeling, known as Radford’s funnel, where the posterior distribution has a very sharp peak at the center, and a long tail, and the curvature of the distribution is very high. This seriously hinders the performance of HMC, and the divergences are a sign that the sampler is having trouble exploring the space.</p>
+<p>However, the issue can be readily rectified using a non-centered parameterization.</p>
+</section>
+<section id="manual-reparameterisation" class="level2">
+<h2 class="anchored" data-anchor-id="manual-reparameterisation">Manual reparameterisation</h2>
+<p>The remedy we are proposing is quite simple: replacing</p>
+<p><span class="math display">\[
+\theta_n \sim \text{N} (\mu, \tau)
+\]</span></p>
+<p>with</p>
+<p><span class="math display">\[
+\begin{align*}
+\theta_n &amp;= \mu + \tau  \theta_0 \\
+\theta_0 &amp;\sim \text{N} (0, 1).
+\end{align*}
+\]</span></p>
+<p>In essence, instead of drawing from a Normal distribution whose parameters are themselves variables in the model, we draw from the unit Normal distribution, and transform it to get the variable we want. By doing so we untangled the sampling process of <span class="math inline">\(\theta\)</span> from that of <span class="math inline">\(\mu\)</span> and <span class="math inline">\(\tau\)</span>.</p>
+<div id="4531aebd" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> es_1(J, sigma):</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    mu <span class="op">=</span> numpyro.sample(<span class="st">'mu'</span>, dist.Normal(<span class="dv">0</span>, <span class="dv">5</span>))</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    tau <span class="op">=</span> numpyro.sample(<span class="st">'tau'</span>, dist.HalfCauchy(<span class="dv">5</span>))</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> numpyro.plate(<span class="st">'J'</span>, J):</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>        theta_0 <span class="op">=</span> numpyro.sample(<span class="st">'theta_0'</span>, dist.Normal(<span class="dv">0</span>, <span class="dv">1</span>))</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>        theta <span class="op">=</span> numpyro.deterministic(<span class="st">'theta'</span>, mu <span class="op">+</span> theta_0 <span class="op">*</span> tau)</span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>        numpyro.sample(<span class="st">'obs'</span>, dist.Normal(theta, sigma))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Here we use another primitive, <code>numpyro.deterministic</code>, to register the transformed variable, so that its values can be stored and used later.</p>
+<div id="6997de63" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>es_prior_predictive_1 <span class="op">=</span> Predictive(es_1, num_samples<span class="op">=</span><span class="dv">1000</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>es_prior_samples_1 <span class="op">=</span> es_prior_predictive_1(rng_key, J, sigma)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>print_stats(<span class="st">'theta_0'</span>, es_prior_samples_1[<span class="st">'theta_0'</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Variable: theta_0
+  Shape: (1000, 8)
+  Mean: [ 0.035466    0.00418693  0.04043639 -0.01104304  0.03547993  0.0202828
+  0.01902334  0.01258929]
+  Variance: [1.0026257 0.9806318 0.9726549 0.9744275 0.9668162 0.9936419 1.0036482
+ 1.0627806]
+</code></pre>
+</div>
+</div>
+<p>Condition on the observed data and do inference.</p>
+<div id="80f1a4c9" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>es_conditioned_1 <span class="op">=</span> condition(es_1, data<span class="op">=</span>{<span class="st">'obs'</span>: y})</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>es_nuts_1 <span class="op">=</span> NUTS(es_conditioned_1)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>es_mcmc_1 <span class="op">=</span> MCMC(es_nuts_1, <span class="op">**</span>mcmc_args)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>es_mcmc_1.run(rng_key, J, sigma)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>es_mcmc_1.print_summary(exclude_deterministic<span class="op">=</span><span class="va">False</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  0%|          | 0/6000 [00:00&lt;?, ?it/s]warmup:   0%|          | 1/6000 [00:01&lt;2:54:13,  1.74s/it]warmup:   0%|          | 27/6000 [00:01&lt;04:57, 20.09it/s] warmup:   1%|          | 52/6000 [00:01&lt;02:20, 42.24it/s]warmup:   1%|▏         | 86/6000 [00:02&lt;01:15, 77.89it/s]warmup:   2%|▏         | 114/6000 [00:02&lt;00:55, 106.91it/s]warmup:   2%|▏         | 143/6000 [00:02&lt;00:42, 137.70it/s]warmup:   3%|▎         | 170/6000 [00:02&lt;00:38, 152.70it/s]warmup:   3%|▎         | 202/6000 [00:02&lt;00:31, 186.86it/s]warmup:   4%|▍         | 239/6000 [00:02&lt;00:25, 227.22it/s]warmup:   5%|▍         | 271/6000 [00:02&lt;00:22, 249.51it/s]warmup:   5%|▌         | 302/6000 [00:02&lt;00:23, 246.00it/s]warmup:   6%|▌         | 333/6000 [00:02&lt;00:21, 262.26it/s]warmup:   6%|▌         | 373/6000 [00:03&lt;00:18, 297.23it/s]warmup:   7%|▋         | 408/6000 [00:03&lt;00:18, 310.28it/s]warmup:   8%|▊         | 455/6000 [00:03&lt;00:15, 352.29it/s]warmup:   8%|▊         | 492/6000 [00:03&lt;00:17, 309.75it/s]warmup:   9%|▉         | 525/6000 [00:03&lt;00:18, 302.64it/s]warmup:   9%|▉         | 568/6000 [00:03&lt;00:16, 334.61it/s]warmup:  10%|█         | 609/6000 [00:03&lt;00:15, 353.73it/s]warmup:  11%|█         | 660/6000 [00:03&lt;00:13, 396.40it/s]warmup:  12%|█▏        | 713/6000 [00:03&lt;00:12, 433.13it/s]warmup:  13%|█▎        | 765/6000 [00:04&lt;00:11, 458.10it/s]warmup:  14%|█▎        | 813/6000 [00:04&lt;00:11, 464.05it/s]warmup:  14%|█▍        | 866/6000 [00:04&lt;00:10, 482.66it/s]warmup:  15%|█▌        | 915/6000 [00:04&lt;00:10, 479.56it/s]warmup:  16%|█▌        | 964/6000 [00:04&lt;00:11, 435.98it/s]sample:  17%|█▋        | 1009/6000 [00:04&lt;00:13, 378.00it/s]sample:  18%|█▊        | 1055/6000 [00:04&lt;00:12, 398.37it/s]sample:  18%|█▊        | 1097/6000 [00:04&lt;00:12, 402.14it/s]sample:  19%|█▉        | 1146/6000 [00:04&lt;00:11, 424.48it/s]sample:  20%|█▉        | 1193/6000 [00:05&lt;00:11, 434.50it/s]sample:  21%|██        | 1240/6000 [00:05&lt;00:10, 443.14it/s]sample:  21%|██▏       | 1288/6000 [00:05&lt;00:10, 448.84it/s]sample:  22%|██▏       | 1335/6000 [00:05&lt;00:10, 453.79it/s]sample:  23%|██▎       | 1382/6000 [00:05&lt;00:10, 456.78it/s]sample:  24%|██▍       | 1431/6000 [00:05&lt;00:09, 465.42it/s]sample:  25%|██▍       | 1478/6000 [00:05&lt;00:09, 453.29it/s]sample:  25%|██▌       | 1525/6000 [00:05&lt;00:09, 457.02it/s]sample:  26%|██▌       | 1571/6000 [00:05&lt;00:09, 452.11it/s]sample:  27%|██▋       | 1617/6000 [00:05&lt;00:09, 445.86it/s]sample:  28%|██▊       | 1669/6000 [00:06&lt;00:09, 466.37it/s]sample:  29%|██▊       | 1716/6000 [00:06&lt;00:09, 452.56it/s]sample:  29%|██▉       | 1762/6000 [00:06&lt;00:09, 447.17it/s]sample:  30%|███       | 1807/6000 [00:06&lt;00:09, 437.75it/s]sample:  31%|███       | 1852/6000 [00:06&lt;00:09, 441.15it/s]sample:  32%|███▏      | 1899/6000 [00:06&lt;00:09, 448.50it/s]sample:  32%|███▏      | 1947/6000 [00:06&lt;00:08, 456.25it/s]sample:  33%|███▎      | 1997/6000 [00:06&lt;00:08, 469.02it/s]sample:  34%|███▍      | 2044/6000 [00:06&lt;00:08, 463.18it/s]sample:  35%|███▍      | 2093/6000 [00:06&lt;00:08, 469.78it/s]sample:  36%|███▌      | 2141/6000 [00:07&lt;00:08, 468.25it/s]sample:  37%|███▋      | 2191/6000 [00:07&lt;00:08, 475.03it/s]sample:  37%|███▋      | 2243/6000 [00:07&lt;00:07, 487.13it/s]sample:  38%|███▊      | 2292/6000 [00:07&lt;00:07, 468.99it/s]sample:  39%|███▉      | 2340/6000 [00:07&lt;00:07, 464.76it/s]sample:  40%|███▉      | 2387/6000 [00:07&lt;00:07, 463.67it/s]sample:  41%|████      | 2434/6000 [00:07&lt;00:07, 460.34it/s]sample:  41%|████▏     | 2482/6000 [00:07&lt;00:07, 463.99it/s]sample:  42%|████▏     | 2529/6000 [00:07&lt;00:07, 456.47it/s]sample:  43%|████▎     | 2578/6000 [00:08&lt;00:07, 464.15it/s]sample:  44%|████▍     | 2625/6000 [00:08&lt;00:07, 461.24it/s]sample:  45%|████▍     | 2672/6000 [00:08&lt;00:07, 462.90it/s]sample:  45%|████▌     | 2720/6000 [00:08&lt;00:07, 462.92it/s]sample:  46%|████▌     | 2767/6000 [00:08&lt;00:07, 457.43it/s]sample:  47%|████▋     | 2813/6000 [00:08&lt;00:07, 453.22it/s]sample:  48%|████▊     | 2860/6000 [00:08&lt;00:06, 455.75it/s]sample:  48%|████▊     | 2906/6000 [00:08&lt;00:06, 453.72it/s]sample:  49%|████▉     | 2952/6000 [00:08&lt;00:06, 453.75it/s]sample:  50%|████▉     | 2998/6000 [00:08&lt;00:06, 447.13it/s]sample:  51%|█████     | 3047/6000 [00:09&lt;00:06, 458.35it/s]sample:  52%|█████▏    | 3093/6000 [00:09&lt;00:06, 448.77it/s]sample:  52%|█████▏    | 3141/6000 [00:09&lt;00:06, 456.88it/s]sample:  53%|█████▎    | 3187/6000 [00:09&lt;00:06, 453.38it/s]sample:  54%|█████▍    | 3237/6000 [00:09&lt;00:05, 465.75it/s]sample:  55%|█████▍    | 3285/6000 [00:09&lt;00:05, 468.01it/s]sample:  56%|█████▌    | 3332/6000 [00:09&lt;00:05, 467.60it/s]sample:  56%|█████▋    | 3379/6000 [00:09&lt;00:05, 464.60it/s]sample:  57%|█████▋    | 3426/6000 [00:09&lt;00:05, 444.57it/s]sample:  58%|█████▊    | 3471/6000 [00:10&lt;00:05, 429.69it/s]sample:  59%|█████▊    | 3520/6000 [00:10&lt;00:05, 445.75it/s]sample:  59%|█████▉    | 3566/6000 [00:10&lt;00:05, 448.57it/s]sample:  60%|██████    | 3613/6000 [00:10&lt;00:05, 451.58it/s]sample:  61%|██████    | 3659/6000 [00:10&lt;00:05, 448.24it/s]sample:  62%|██████▏   | 3708/6000 [00:10&lt;00:05, 458.08it/s]sample:  63%|██████▎   | 3756/6000 [00:10&lt;00:04, 461.94it/s]sample:  63%|██████▎   | 3803/6000 [00:10&lt;00:04, 458.31it/s]sample:  64%|██████▍   | 3853/6000 [00:10&lt;00:04, 468.84it/s]sample:  65%|██████▌   | 3900/6000 [00:10&lt;00:04, 467.56it/s]sample:  66%|██████▌   | 3950/6000 [00:11&lt;00:04, 476.85it/s]sample:  67%|██████▋   | 3998/6000 [00:11&lt;00:04, 476.33it/s]sample:  67%|██████▋   | 4047/6000 [00:11&lt;00:04, 479.09it/s]sample:  68%|██████▊   | 4100/6000 [00:11&lt;00:03, 492.02it/s]sample:  69%|██████▉   | 4150/6000 [00:11&lt;00:03, 484.55it/s]sample:  70%|███████   | 4200/6000 [00:11&lt;00:03, 484.14it/s]sample:  71%|███████   | 4249/6000 [00:11&lt;00:03, 465.35it/s]sample:  72%|███████▏  | 4296/6000 [00:11&lt;00:03, 460.80it/s]sample:  72%|███████▏  | 4345/6000 [00:11&lt;00:03, 464.62it/s]sample:  73%|███████▎  | 4392/6000 [00:11&lt;00:03, 461.71it/s]sample:  74%|███████▍  | 4441/6000 [00:12&lt;00:03, 466.76it/s]sample:  75%|███████▍  | 4489/6000 [00:12&lt;00:03, 467.82it/s]sample:  76%|███████▌  | 4538/6000 [00:12&lt;00:03, 473.45it/s]sample:  76%|███████▋  | 4586/6000 [00:12&lt;00:03, 466.66it/s]sample:  77%|███████▋  | 4635/6000 [00:12&lt;00:02, 468.77it/s]sample:  78%|███████▊  | 4685/6000 [00:12&lt;00:02, 474.70it/s]sample:  79%|███████▉  | 4741/6000 [00:12&lt;00:02, 497.70it/s]sample:  80%|███████▉  | 4792/6000 [00:12&lt;00:02, 499.85it/s]sample:  81%|████████  | 4843/6000 [00:12&lt;00:02, 488.28it/s]sample:  82%|████████▏ | 4892/6000 [00:13&lt;00:02, 476.29it/s]sample:  82%|████████▏ | 4942/6000 [00:13&lt;00:02, 479.23it/s]sample:  83%|████████▎ | 4990/6000 [00:13&lt;00:02, 472.67it/s]sample:  84%|████████▍ | 5038/6000 [00:13&lt;00:02, 468.18it/s]sample:  85%|████████▍ | 5085/6000 [00:13&lt;00:01, 460.90it/s]sample:  86%|████████▌ | 5137/6000 [00:13&lt;00:01, 473.90it/s]sample:  86%|████████▋ | 5188/6000 [00:13&lt;00:01, 483.94it/s]sample:  87%|████████▋ | 5239/6000 [00:13&lt;00:01, 490.27it/s]sample:  88%|████████▊ | 5289/6000 [00:13&lt;00:01, 482.79it/s]sample:  89%|████████▉ | 5338/6000 [00:13&lt;00:01, 474.44it/s]sample:  90%|████████▉ | 5390/6000 [00:14&lt;00:01, 486.40it/s]sample:  91%|█████████ | 5439/6000 [00:14&lt;00:01, 476.95it/s]sample:  91%|█████████▏| 5488/6000 [00:14&lt;00:01, 478.78it/s]sample:  92%|█████████▏| 5537/6000 [00:14&lt;00:00, 481.07it/s]sample:  93%|█████████▎| 5586/6000 [00:14&lt;00:00, 469.55it/s]sample:  94%|█████████▍| 5634/6000 [00:14&lt;00:00, 462.16it/s]sample:  95%|█████████▍| 5681/6000 [00:14&lt;00:00, 460.94it/s]sample:  95%|█████████▌| 5728/6000 [00:14&lt;00:00, 461.84it/s]sample:  96%|█████████▋| 5781/6000 [00:14&lt;00:00, 480.63it/s]sample:  97%|█████████▋| 5830/6000 [00:14&lt;00:00, 478.41it/s]sample:  98%|█████████▊| 5878/6000 [00:15&lt;00:00, 474.54it/s]sample:  99%|█████████▉| 5926/6000 [00:15&lt;00:00, 462.32it/s]sample: 100%|█████████▉| 5974/6000 [00:15&lt;00:00, 467.11it/s]sample: 100%|██████████| 6000/6000 [00:15&lt;00:00, 390.83it/s]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+                mean       std    median      5.0%     95.0%     n_eff     r_hat
+        mu      4.39      3.30      4.40     -1.00      9.83  35585.46      1.00
+       tau      3.62      3.23      2.77      0.00      7.78  28589.16      1.00
+  theta[0]      6.23      5.57      5.66     -2.33     14.72  35893.88      1.00
+  theta[1]      4.91      4.64      4.80     -2.49     12.31  42347.88      1.00
+  theta[2]      3.92      5.30      4.16     -4.44     12.15  34873.20      1.00
+  theta[3]      4.76      4.77      4.72     -2.90     12.33  42643.90      1.00
+  theta[4]      3.61      4.66      3.86     -3.58     11.25  39974.71      1.00
+  theta[5]      4.08      4.77      4.21     -3.52     11.68  39644.57      1.00
+  theta[6]      6.28      5.07      5.79     -1.62     14.28  40117.39      1.00
+  theta[7]      4.85      5.25      4.76     -3.41     13.11  37310.81      1.00
+theta_0[0]      0.32      0.99      0.34     -1.27      1.97  40503.70      1.00
+theta_0[1]      0.10      0.93      0.10     -1.41      1.65  43437.47      1.00
+theta_0[2]     -0.08      0.97     -0.08     -1.71      1.47  41132.58      1.00
+theta_0[3]      0.06      0.95      0.06     -1.55      1.58  45070.05      1.00
+theta_0[4]     -0.17      0.93     -0.17     -1.69      1.36  40592.80      1.00
+theta_0[5]     -0.07      0.94     -0.07     -1.61      1.48  44577.57      1.00
+theta_0[6]      0.35      0.96      0.36     -1.16      2.01  38809.45      1.00
+theta_0[7]      0.08      0.98      0.08     -1.58      1.63  45373.39      1.00
+
+Number of divergences: 5</code></pre>
+</div>
+</div>
+<p>This looks much better, both the effective sample size and the <code>r_hat</code> have massively improved for the hyperparameter <code>tau</code>, and the number of divergences is also much lower. However, the fact that there are still divergences tells us that reparameterisation might improve the topology of the posterior parameter space, but there is no guarantee that it will completely eliminate the problem. When doing Bayesian inference, especially with models of complex dependency relationships as in hierarchical models, good techniques are never a sufficient replacement for good thinking.</p>
+</section>
+<section id="using-numpyros-reparameterisation-handler" class="level2">
+<h2 class="anchored" data-anchor-id="using-numpyros-reparameterisation-handler">Using numpyro’s reparameterisation handler</h2>
+<p>Since this reparameterisation is so widely used, it has already been implemented in NumPyro. And since reparameterisation in general is so important in probabilistic modelling, NumPyro has implemented a wide suite of them.</p>
+<p>In probabilistic modeling, although it’s always a good practice to separate modeling from inference, it’s not always easy to do so. As we have seen, how we formulate the model can have a significant impact on the inference performance. When building the model, not only do we need to configure the variable transformations, but we also need to inform the inference engine how to handle these transformed variables. This is where the <code>numpyro.handlers.reparam</code> handler comes in.</p>
+<div id="42b6b286" class="cell" data-execution_count="11">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> numpyro.handlers <span class="im">import</span> reparam</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> numpyro.infer.reparam <span class="im">import</span> TransformReparam</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> numpyro.distributions.transforms <span class="im">import</span> AffineTransform</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> numpyro.distributions <span class="im">import</span> TransformedDistribution</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> es_2(J, sigma):</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    mu <span class="op">=</span> numpyro.sample(<span class="st">'mu'</span>, dist.Normal(<span class="dv">0</span>, <span class="dv">5</span>))</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>    tau <span class="op">=</span> numpyro.sample(<span class="st">'tau'</span>, dist.HalfCauchy(<span class="dv">5</span>))</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">with</span> numpyro.plate(<span class="st">'J'</span>, J):</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">with</span> reparam(config<span class="op">=</span>{<span class="st">'theta'</span>: TransformReparam()}):</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>            theta <span class="op">=</span> numpyro.sample(</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>                <span class="st">'theta'</span>,</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>                TransformedDistribution(dist.Normal(<span class="fl">0.</span>, <span class="fl">1.</span>), AffineTransform(mu, tau)))</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>        numpyro.sample(<span class="st">'obs'</span>, dist.Normal(theta, sigma))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The process of reparameterisation goes as follows:</p>
+<ol type="1">
+<li>Start with a standard Normal distribution <code>dist.Normal(0., 1.)</code>,</li>
+<li>Transform it using the affine transformation <code>AffineTransform(mu, tau)</code>,</li>
+<li>Denote the result as a <code>TransformedDistribution</code>,</li>
+<li>Register the transformed variable <code>theta</code> using <code>numpyro.sample</code>,</li>
+<li>Inform the inference engine of the reparameterisation using <code>reparam</code>.</li>
+</ol>
+<p>Proceed with prior predictive sampling.</p>
+<div id="c70edd35" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>es_prior_predictive_2 <span class="op">=</span> Predictive(es_2, num_samples<span class="op">=</span><span class="dv">1000</span>)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>es_prior_samples_2 <span class="op">=</span> es_prior_predictive_2(rng_key, J, sigma)</span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>print_stats(<span class="st">'theta'</span>, es_prior_samples_2[<span class="st">'theta'</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Variable: theta
+  Shape: (1000, 8)
+  Mean: [-1.2455076   2.9482472  -5.281853   -0.06498987  2.3573008   0.31068215
+  3.729895   -1.5531777 ]
+  Variance: [11408.184   8016.4224 36956.      8181.7744  7636.8813  9586.139
+  6544.6753 26078.693 ]
+</code></pre>
+</div>
+</div>
+<p>Condition on the observed data and do inference.</p>
+<div id="fd783161" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>es_conditioned_2 <span class="op">=</span> condition(es_2, data<span class="op">=</span>{<span class="st">'obs'</span>: y})</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>es_nuts_2 <span class="op">=</span> NUTS(es_conditioned_2)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>es_mcmc_2 <span class="op">=</span> MCMC(es_nuts_2, <span class="op">**</span>mcmc_args)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>es_mcmc_2.run(rng_key, J, sigma)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>es_mcmc_2.print_summary()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  0%|          | 0/6000 [00:00&lt;?, ?it/s]warmup:   0%|          | 1/6000 [00:01&lt;2:53:24,  1.73s/it]warmup:   0%|          | 26/6000 [00:01&lt;05:05, 19.52it/s] warmup:   1%|          | 46/6000 [00:01&lt;02:40, 37.09it/s]warmup:   1%|▏         | 79/6000 [00:02&lt;01:21, 72.74it/s]warmup:   2%|▏         | 108/6000 [00:02&lt;00:56, 104.35it/s]warmup:   2%|▏         | 133/6000 [00:02&lt;00:45, 129.50it/s]warmup:   3%|▎         | 158/6000 [00:02&lt;00:38, 150.90it/s]warmup:   3%|▎         | 183/6000 [00:02&lt;00:34, 167.18it/s]warmup:   4%|▎         | 219/6000 [00:02&lt;00:27, 210.99it/s]warmup:   4%|▍         | 257/6000 [00:02&lt;00:22, 252.83it/s]warmup:   5%|▍         | 288/6000 [00:02&lt;00:23, 243.61it/s]warmup:   5%|▌         | 317/6000 [00:02&lt;00:22, 251.34it/s]warmup:   6%|▌         | 351/6000 [00:03&lt;00:20, 273.98it/s]warmup:   7%|▋         | 392/6000 [00:03&lt;00:18, 310.97it/s]warmup:   7%|▋         | 433/6000 [00:03&lt;00:16, 337.75it/s]warmup:   8%|▊         | 469/6000 [00:03&lt;00:16, 328.40it/s]warmup:   8%|▊         | 503/6000 [00:03&lt;00:17, 307.71it/s]warmup:   9%|▉         | 535/6000 [00:03&lt;00:17, 308.68it/s]warmup:  10%|▉         | 577/6000 [00:03&lt;00:16, 338.74it/s]warmup:  10%|█         | 619/6000 [00:03&lt;00:14, 360.83it/s]warmup:  11%|█         | 671/6000 [00:03&lt;00:13, 405.19it/s]warmup:  12%|█▏        | 721/6000 [00:03&lt;00:12, 432.39it/s]warmup:  13%|█▎        | 769/6000 [00:04&lt;00:11, 445.78it/s]warmup:  14%|█▎        | 817/6000 [00:04&lt;00:11, 455.41it/s]warmup:  14%|█▍        | 869/6000 [00:04&lt;00:10, 471.77it/s]warmup:  15%|█▌        | 917/6000 [00:04&lt;00:10, 471.07it/s]warmup:  16%|█▌        | 965/6000 [00:04&lt;00:11, 427.63it/s]sample:  17%|█▋        | 1009/6000 [00:04&lt;00:13, 367.46it/s]sample:  18%|█▊        | 1054/6000 [00:04&lt;00:12, 386.48it/s]sample:  18%|█▊        | 1096/6000 [00:04&lt;00:12, 393.05it/s]sample:  19%|█▉        | 1145/6000 [00:04&lt;00:11, 416.99it/s]sample:  20%|█▉        | 1191/6000 [00:05&lt;00:11, 428.01it/s]sample:  21%|██        | 1237/6000 [00:05&lt;00:10, 435.05it/s]sample:  21%|██▏       | 1286/6000 [00:05&lt;00:10, 450.58it/s]sample:  22%|██▏       | 1332/6000 [00:05&lt;00:10, 450.77it/s]sample:  23%|██▎       | 1378/6000 [00:05&lt;00:10, 453.47it/s]sample:  24%|██▍       | 1427/6000 [00:05&lt;00:09, 461.69it/s]sample:  25%|██▍       | 1474/6000 [00:05&lt;00:09, 454.81it/s]sample:  25%|██▌       | 1521/6000 [00:05&lt;00:09, 458.74it/s]sample:  26%|██▌       | 1567/6000 [00:05&lt;00:09, 459.09it/s]sample:  27%|██▋       | 1614/6000 [00:05&lt;00:09, 461.35it/s]sample:  28%|██▊       | 1665/6000 [00:06&lt;00:09, 474.87it/s]sample:  29%|██▊       | 1713/6000 [00:06&lt;00:09, 468.50it/s]sample:  29%|██▉       | 1760/6000 [00:06&lt;00:09, 462.37it/s]sample:  30%|███       | 1807/6000 [00:06&lt;00:09, 453.63it/s]sample:  31%|███       | 1854/6000 [00:06&lt;00:09, 457.83it/s]sample:  32%|███▏      | 1902/6000 [00:06&lt;00:08, 463.80it/s]sample:  33%|███▎      | 1952/6000 [00:06&lt;00:08, 474.05it/s]sample:  33%|███▎      | 2002/6000 [00:06&lt;00:08, 480.34it/s]sample:  34%|███▍      | 2051/6000 [00:06&lt;00:08, 476.93it/s]sample:  35%|███▌      | 2102/6000 [00:07&lt;00:08, 485.69it/s]sample:  36%|███▌      | 2153/6000 [00:07&lt;00:07, 491.42it/s]sample:  37%|███▋      | 2206/6000 [00:07&lt;00:07, 500.20it/s]sample:  38%|███▊      | 2258/6000 [00:07&lt;00:07, 501.94it/s]sample:  38%|███▊      | 2309/6000 [00:07&lt;00:07, 487.69it/s]sample:  39%|███▉      | 2358/6000 [00:07&lt;00:07, 478.91it/s]sample:  40%|████      | 2407/6000 [00:07&lt;00:07, 479.13it/s]sample:  41%|████      | 2457/6000 [00:07&lt;00:07, 483.84it/s]sample:  42%|████▏     | 2506/6000 [00:07&lt;00:07, 477.62it/s]sample:  43%|████▎     | 2556/6000 [00:07&lt;00:07, 483.60it/s]sample:  43%|████▎     | 2605/6000 [00:08&lt;00:07, 476.49it/s]sample:  44%|████▍     | 2653/6000 [00:08&lt;00:07, 474.64it/s]sample:  45%|████▌     | 2701/6000 [00:08&lt;00:07, 468.79it/s]sample:  46%|████▌     | 2748/6000 [00:08&lt;00:07, 460.25it/s]sample:  47%|████▋     | 2795/6000 [00:08&lt;00:06, 461.85it/s]sample:  47%|████▋     | 2842/6000 [00:08&lt;00:06, 461.08it/s]sample:  48%|████▊     | 2890/6000 [00:08&lt;00:06, 463.00it/s]sample:  49%|████▉     | 2938/6000 [00:08&lt;00:06, 466.11it/s]sample:  50%|████▉     | 2985/6000 [00:08&lt;00:06, 457.25it/s]sample:  51%|█████     | 3033/6000 [00:08&lt;00:06, 463.22it/s]sample:  51%|█████▏    | 3080/6000 [00:09&lt;00:06, 456.56it/s]sample:  52%|█████▏    | 3131/6000 [00:09&lt;00:06, 469.63it/s]sample:  53%|█████▎    | 3179/6000 [00:09&lt;00:06, 463.81it/s]sample:  54%|█████▍    | 3229/6000 [00:09&lt;00:05, 474.20it/s]sample:  55%|█████▍    | 3278/6000 [00:09&lt;00:05, 476.66it/s]sample:  55%|█████▌    | 3327/6000 [00:09&lt;00:05, 478.12it/s]sample:  56%|█████▋    | 3375/6000 [00:09&lt;00:05, 475.22it/s]sample:  57%|█████▋    | 3423/6000 [00:09&lt;00:05, 455.69it/s]sample:  58%|█████▊    | 3469/6000 [00:09&lt;00:05, 441.57it/s]sample:  59%|█████▊    | 3521/6000 [00:10&lt;00:05, 458.80it/s]sample:  59%|█████▉    | 3569/6000 [00:10&lt;00:05, 462.90it/s]sample:  60%|██████    | 3616/6000 [00:10&lt;00:05, 464.00it/s]sample:  61%|██████    | 3663/6000 [00:10&lt;00:05, 458.85it/s]sample:  62%|██████▏   | 3712/6000 [00:10&lt;00:04, 465.93it/s]sample:  63%|██████▎   | 3759/6000 [00:10&lt;00:04, 467.11it/s]sample:  63%|██████▎   | 3806/6000 [00:10&lt;00:04, 451.03it/s]sample:  64%|██████▍   | 3853/6000 [00:10&lt;00:04, 454.12it/s]sample:  65%|██████▍   | 3899/6000 [00:10&lt;00:04, 451.29it/s]sample:  66%|██████▌   | 3947/6000 [00:10&lt;00:04, 458.05it/s]sample:  67%|██████▋   | 3995/6000 [00:11&lt;00:04, 461.08it/s]sample:  67%|██████▋   | 4043/6000 [00:11&lt;00:04, 464.11it/s]sample:  68%|██████▊   | 4091/6000 [00:11&lt;00:04, 468.56it/s]sample:  69%|██████▉   | 4138/6000 [00:11&lt;00:04, 464.79it/s]sample:  70%|██████▉   | 4185/6000 [00:11&lt;00:03, 463.96it/s]sample:  71%|███████   | 4232/6000 [00:11&lt;00:03, 448.10it/s]sample:  71%|███████▏  | 4277/6000 [00:11&lt;00:03, 440.27it/s]sample:  72%|███████▏  | 4323/6000 [00:11&lt;00:03, 445.45it/s]sample:  73%|███████▎  | 4368/6000 [00:11&lt;00:03, 432.83it/s]sample:  74%|███████▎  | 4412/6000 [00:12&lt;00:03, 427.08it/s]sample:  74%|███████▍  | 4459/6000 [00:12&lt;00:03, 438.82it/s]sample:  75%|███████▌  | 4506/6000 [00:12&lt;00:03, 447.25it/s]sample:  76%|███████▌  | 4551/6000 [00:12&lt;00:03, 445.39it/s]sample:  77%|███████▋  | 4597/6000 [00:12&lt;00:03, 449.38it/s]sample:  77%|███████▋  | 4642/6000 [00:12&lt;00:03, 445.80it/s]sample:  78%|███████▊  | 4689/6000 [00:12&lt;00:02, 452.08it/s]sample:  79%|███████▉  | 4743/6000 [00:12&lt;00:02, 476.45it/s]sample:  80%|███████▉  | 4793/6000 [00:12&lt;00:02, 482.92it/s]sample:  81%|████████  | 4842/6000 [00:12&lt;00:02, 474.63it/s]sample:  82%|████████▏ | 4890/6000 [00:13&lt;00:02, 466.45it/s]sample:  82%|████████▏ | 4939/6000 [00:13&lt;00:02, 472.34it/s]sample:  83%|████████▎ | 4987/6000 [00:13&lt;00:02, 470.31it/s]sample:  84%|████████▍ | 5035/6000 [00:13&lt;00:02, 464.48it/s]sample:  85%|████████▍ | 5082/6000 [00:13&lt;00:01, 460.32it/s]sample:  86%|████████▌ | 5135/6000 [00:13&lt;00:01, 478.37it/s]sample:  86%|████████▋ | 5184/6000 [00:13&lt;00:01, 478.56it/s]sample:  87%|████████▋ | 5236/6000 [00:13&lt;00:01, 489.32it/s]sample:  88%|████████▊ | 5285/6000 [00:13&lt;00:01, 479.80it/s]sample:  89%|████████▉ | 5334/6000 [00:13&lt;00:01, 475.55it/s]sample:  90%|████████▉ | 5387/6000 [00:14&lt;00:01, 487.88it/s]sample:  91%|█████████ | 5436/6000 [00:14&lt;00:01, 477.41it/s]sample:  91%|█████████▏| 5485/6000 [00:14&lt;00:01, 480.83it/s]sample:  92%|█████████▏| 5534/6000 [00:14&lt;00:00, 481.06it/s]sample:  93%|█████████▎| 5583/6000 [00:14&lt;00:00, 475.80it/s]sample:  94%|█████████▍| 5631/6000 [00:14&lt;00:00, 463.87it/s]sample:  95%|█████████▍| 5679/6000 [00:14&lt;00:00, 468.36it/s]sample:  95%|█████████▌| 5727/6000 [00:14&lt;00:00, 468.57it/s]sample:  96%|█████████▋| 5781/6000 [00:14&lt;00:00, 486.74it/s]sample:  97%|█████████▋| 5831/6000 [00:15&lt;00:00, 489.37it/s]sample:  98%|█████████▊| 5880/6000 [00:15&lt;00:00, 482.09it/s]sample:  99%|█████████▉| 5929/6000 [00:15&lt;00:00, 473.17it/s]sample: 100%|█████████▉| 5979/6000 [00:15&lt;00:00, 479.65it/s]sample: 100%|██████████| 6000/6000 [00:15&lt;00:00, 390.50it/s]</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>
+                   mean       std    median      5.0%     95.0%     n_eff     r_hat
+           mu      4.39      3.30      4.40     -1.00      9.83  35585.46      1.00
+          tau      3.62      3.23      2.77      0.00      7.78  28589.16      1.00
+theta_base[0]      0.32      0.99      0.34     -1.27      1.97  40503.70      1.00
+theta_base[1]      0.10      0.93      0.10     -1.41      1.65  43437.47      1.00
+theta_base[2]     -0.08      0.97     -0.08     -1.71      1.47  41132.58      1.00
+theta_base[3]      0.06      0.95      0.06     -1.55      1.58  45070.05      1.00
+theta_base[4]     -0.17      0.93     -0.17     -1.69      1.36  40592.80      1.00
+theta_base[5]     -0.07      0.94     -0.07     -1.61      1.48  44577.57      1.00
+theta_base[6]      0.35      0.96      0.36     -1.16      2.01  38809.45      1.00
+theta_base[7]      0.08      0.98      0.08     -1.58      1.63  45373.39      1.00
+
+Number of divergences: 5</code></pre>
+</div>
+</div>
+<p>The results are consistent with the manual reparameterisation. It might seem uncessarily complicated to use the reparameterisation handler in this simple example, but in more complex models, especially those with many layers of dependencies, the reparameterisation handler can greatly facilitate the model building process.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

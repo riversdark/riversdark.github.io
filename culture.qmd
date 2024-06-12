@@ -1,5 +1,5 @@
 ---
-title: "Cultural Snippets"
+title: "Culture"
 listing: 
   contents: culture 
   type: default 

@@ -1,0 +1,183 @@
+---
+title: "Understanding the attention mechanism"
+description: "It's all about (left and right) matrix multiplications."
+date: 2024-06-19
+categories: ["transformer", "LLM"]
+jupyter: torch
+image: fig/attention.png
+draft: true
+---
+
+This post explains how the attention mechanism in modern language models works, and how it is accomplished through matrix multiplication. 
+
+In language modeling, a chuck of text can be tokenised and embedded into a data matrix:
+
+``` {python}
+import numpy as np
+np.random.seed(0)
+
+T, E = 4, 5  # sequence length, embedding dimension
+x = np.random.randn(T, E)  # input tensor
+print(x)
+```
+
+Here each row is an embedding of one token as a 5 dimensional vector (E=5), and 4 words (T=4) are stack together, from top to bottom.
+
+However, we know that to model the human natural language, it's not enough to have each token independently embedded; the tokens are also semantically related to each other. For example in the sentence "the art of writting is the art of discovering what you believe", the meaning of the sentence is not only in the individual words, but also in how they are methodically arranged together. For the embedding matrix, it's easy to make the tokens relate to each other through (left) matrix multiplication: by introducing a (T, T) matrix that captures the interaction between tokens, and left multiplying it to the embedding matrix, we obtain a matrix the same shape as the original x (note that `(T,T) @ (T,E) -> (T,E)`), but the entries have been modified to represent the influence of each token on all the others.
+
+We can start with a diagonal interaction matrix, which means that each token only interacts with itself (i.e. no interaction at all).
+
+``` {python}
+L = np.eye(T)
+print(L @ x)
+```
+
+As we expected, the embedding matrix is the same as the original x. Next we can make all the tokens equally affecting all others by setting the interaction matrix to be a matrix of ones.
+
+``` {python}
+L = np.ones((T, T)) 
+print(L @ x)
+```
+
+Now all the rows of the embedding matrix are the same, since we effectively summed up all the rows in the original matrix to create the new ones. A slightly more interesting interaction matrix is the lower triangular matrix:
+
+``` {python}
+L = np.tril(np.ones((T, T))) 
+print(L)
+```
+
+and left multiply it to x yields
+
+``` {python}
+print(L @ x)
+```
+
+After left multiplying L, the first row (embeddings for the first word) is left as is, the new second row is the sum of the first two rows, the new third row is the sum of the first three, etc.
+
+One extra thing to note is that it's generally not a good idea to simply summing vectors up: when the vectors get extremely long, as is often the case in modern deep learning, the total sum can often explode, which affects the stability and efficiency of the model training. So we'll use weights the instead. Things are easy if all the values are positive, say 1, 2, 2, 3, then the sume is 8, and the weights are simply 1/8, 2/8, 2/8, and 3/8. But, surprisingly, it's not always easy to get meaningful weights, if the entries in L are not limited to be positive. What if the values are 1, -2, 2, 3? And they may even sum to zero, like -1, 2, 2, -3, leaving us with a devided by zero issue. The solution we use is simple: first exponentiate all the entries to make sure they are positive, and then compute the weights using these positive numbers.
+
+However it doesn't make sense to use such simplistic interaction matrices. We know that human languages are complex, each sentence has its own meaning and semantics, and thus a different interaction matrix is needed for each sentence.
+
+Modern Large language models are mostly next-word-prediction machines.  That is, given a word, we want the model to predict what the next word should be. Actually we mean tokens, but tokens are abstract and unfamiliar, so we'll use them interchangeably to represent "the units of meaning". In this problem setup, with "the art of writting is the art of discovering what you believe", when we see "the art of writting", we don't know that "the art of discovering what you believe" is going to follow; but when we see "the art of discovering what you believe", we have already known that "the art of writting" have come before it. The information flows only one way, like the rivers flow down the Himalayas, but they never flow back to the Himalayas.
+
+For this reason we need the information to only flow forward and never backward. This can be easily achieved by making L a lower triangle matrix:
+There are some serious consequences in the approach, but we'll talk
+about them another day. (Softmax has a tendency to make the bigger
+weights even bigger, which is why we need the normalisation layers.)
+
+``` {python}
+L = np.tril(np.ones((T, T))) # mask matrix
+weights = np.zeros((T, T))
+weights = np.where(mask==0, float('-inf'), weights)
+weights = np.exp(weights - np.max(weights, axis=-1, keepdims=True))
+weights = weights / np.sum(weights, axis=-1, keepdims=True)
+print(weights)
+```
+
+Here we decomposed the task into several subtasks to make it more
+manageable and extensible:
+
+1.  a lower triangular mask matrix is defined, with the lower left part
+    being ones and upper right part being zeros.
+2.  an all-connected-to-all weight matrix is obtained, this captures all
+    possible information flows among the tokens, forward and also
+    backward. We are still using ones here, meaning that all tokens are
+    equally contributing to all other tokens, but this will be modified
+    later.
+3.  the mask is applied to the weight matrix to suppress all backward
+    information flow. This is done by keeping the lower left part of the
+    weight matrix as is, but replacing the upper right part as negative
+    infinites.
+4.  the weights are exponentiated and normalised so that each row sum to
+    one (using the softmax function). When exponentiated the masked
+    entries, i.e. the negative infinites become zeros, and thus
+    contributing zero weight to the information flow.
+
+``` {python}
+print(weights @ x)
+```
+
+We can see that the first row (embeddings for the first word) is left as
+is, the new second row is the average of the first two rows, the new
+third row is the average of the first three, etc.
+
+Up to now, we are striving to make the rows interact, but what about the
+columns? We see that for the rows to interact we need to left multiply
+an interactoin matrix, to make the columns interact we need to right
+multiply an interaction matrix. And since each row is the embedding of
+one token, and unlike the sequential tokens, there is no directional
+restraints on how the embedding for each token should interact,
+internally. For this reason we can use any random matrix. And there is
+no reason that the token embedding vector should stay the same, so
+we'll use a new dimeansion, called attention head dimension.
+
+``` {python}
+H = 6
+R = np.random.randn(E, H)
+print(weights @ x @ R)
+```
+
+`H`{.verbatim}, the attention head, is the dimension chosen to further
+embed the token embeddings.
+
+Now, what next? We have successfully set up the one direction
+information flow, but the left interaction weights are preset equal
+weights, and the right (column) interaction weights are just random. The
+next step is to make them all neural network parameters and learn from
+the data. By tuning the parameters we can decide how much information
+the earlier words should pass to the later words, i.e. how much the
+later words should "attend" to the earlier words: there goes the
+"attention" mechanism. We can also try to find the best embeddings for
+the tokens.
+
+In generative pretraining of large language models, we have no other
+information than the training input data; understandably the weights
+will come from a certain transformation of the input. But what
+transformation? The way attention models work, is to further embed the
+token embeddings with two extra embedding matrix, and then generate the
+weights matrix by multiplying them together.
+
+``` {python}
+# define queries, keys, and values using linear layers
+key = np.random.randn(E, H)
+query = np.random.randn(E, H)
+
+weights = x @ query @ (x @ key).T # (T, H) @ (H, T) = (T, T)
+weights = np.where(mask == 0, float('-inf'), weights)
+weights = np.exp(weights - np.max(weights, axis=-1, keepdims=True))
+weights = weights / np.sum(weights, axis=-1, keepdims=True)
+print(weights)
+```
+
+`key`{.verbatim} and `query`{.verbatim} are the two embedding matrices
+of dimension `(E, H)`{.verbatim}, and after the attention embedding the
+token embedding will be of dimension (T, E) @ (E, H) = (T, H). Here we
+implemented the attention embedding with `nn.linear`{.verbatim}, because
+when defining a layer using `nn.Linear`{.verbatim}, under the hood,
+PyTorch automatically initialises a weight matrix of dimensions
+`(E, H)`{.verbatim} with random values, so `query(x)`{.verbatim} and
+`key(x)`{.verbatim} will do matric multiplication to transforme the
+input embeddings into attention heads.
+
+Similiarly we will apply a comparable attention transformation to the
+token embedding x, so that the token embeddings are not only upgraded on
+the interaction matrix side, but also on the token embedding side.
+
+``` {python}
+value = np.random.randn(E, H)
+print(weights @ value)  # (T, T) @ (T, H) = (T, H)
+```
+
+Two outcomes are achieved after all this manipulation:
+
+1.  the tokens are further embedded with the neural network,
+2.  and the tokens are communicating with each other. Only one
+    directional, of course.
+
+And voilà, we now have gone through the single most import component is
+modern large language models.
+
+However, our explanation of the attention mechanism overlooks (or even
+intentionally obfuscates) one of the most essential features of
+attention, and we will come back to it in the next post on transformer
+layers.

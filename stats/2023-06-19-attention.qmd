@@ -1,7 +1,7 @@
 ---
 title: "Understanding the attention mechanism"
 description: "It's all about (left and right) matrix multiplications."
-date: 2024-06-19
+date: 2023-06-19
 categories: ["transformer", "LLM"]
 jupyter: torch
 image: fig/attention.png

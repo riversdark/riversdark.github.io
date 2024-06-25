@@ -1,0 +1,28 @@
+---
+title: "GPT-2 inference with PyTorch"
+date: 2024-01-06
+draft: true
+---
+
+The model is built up step by step, so is the inference.
+
+## encoder
+
+Byte pair encoding utilities.
+
+Copied from:
+<https://github.com/openai/gpt-2/blob/master/src/encoder.py>.
+
+## model
+
+## utils
+
+### download GPT2 files
+
+### load GPT2 parameters from check point
+
+### set in nested dict
+
+### load encoder hyperparameters and parameters
+
+## inference

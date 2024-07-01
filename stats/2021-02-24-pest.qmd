@@ -1,20 +1,14 @@
 ---
-title: The Pest
-description: "A primer on Bayesian model building workflow"
-date: 2024-02-24
+title: "The Pest: A primer on Bayesian workflow"
+description: "A whirlwind tour on Bayesian model building, workflow, model criticism and robust inference."
+date: 2021-02-24
 categories: ["numpyro", "Bayesian"]
 jupyter: jax
 image: fig/pest.png
 draft: true
 ---
 
-A whirlwind tour on Bayesian model building, Bayesian workflow, model
-criticism and robust inference.
-
-This post is based on [the tutorial](https://github.com/jgabry/stancon2018helsinki_intro) given by
-Jonah Gabry at Stancon 2018, and that's where the data can be found. I
-ported the tutorial to `NumPyro` because it is a great
-introduction to Bayesian modeling and workflow.
+This post is based on [the tutorial](https://github.com/jgabry/stancon2018helsinki_intro) given by Jonah Gabry at Stancon 2018, and that's where the data can be found. I ported the tutorial to `NumPyro` because I found it a great introduction to Bayesian modeling and workflow.
 
 In this post we'll cover many different modeling techniques, including
 
@@ -25,38 +19,20 @@ In this post we'll cover many different modeling techniques, including
 -   time series modeling with linear autoregressive process
 -   time series modeling with non-linear non-parametric Gaussian process
 
-The purpose of this post is to get familiar with the Bayesian model
-expansion process, and the use of data visualisation for model building.
-There are many nuances in Bayesian modeling that we won't get into,
-especially the MCMC inference and its result examination. Essentially,
-we focus on the statistical modeling part while leaving out the details
-of statistical computation.
+The purpose of this post is to get familiar with the Bayesian model expansion process, and the use of data visualisation for model building.  There are many nuances in Bayesian modeling that we won't get into, especially the MCMC inference and its result examination. Essentially, we focus on the statistical modeling part while leaving out the details of statistical computation.
 
 ## The problem
 
-New York, as its great reputation merits, has cockroaches everywhere,
-especially in the dark corners of the apartment compounds. Recently,
-some residents have been complaining about the omnipresence of the pest;
-the property manager intends to solve the problem efficiently and
-effectively, by deploying traps in the apartments. To establish the
-relationship between the number of traps to set up, and the number of
-complaints received, an experiment has been carried out:
+New York, as its great reputation merits, has cockroaches everywhere, especially in the dark corners of the apartment compounds. Recently, some residents have been complaining about the omnipresence of the pest; the property manager intends to solve the problem efficiently and effectively, by deploying traps in the apartments. To establish the relationship between the number of traps to set up, and the number of complaints received, an experiment has been carried out:
 
--   At the beginning of each month, a pest inspector randomly places a
-    number of bait stations throughout the building, without knowledge
-    of the current cockroach levels in the building
--   At the end of the month, the manager records the total number of
-    cockroach complaints in that building.
+-   At the beginning of each month, a pest inspector randomly places a number of bait stations throughout the building, without knowledge of the current cockroach levels in the building
+-   At the end of the month, the manager records the total number of cockroach complaints in that building.
 
-With this data, we'd like to model how complaints change as the number
-of traps changes. Since the number of traps installed and the expense
-for dealing with extra costs both contribute to the final maintenance
-cost, we'd like to choose the number of traps installed to minimise the
-cost.
+With this data, we'd like to model how complaints change as the number of traps changes. Since the number of traps installed and the expense for dealing with extra costs both contribute to the final maintenance cost, we'd like to choose the number of traps installed to minimise the cost.
 
 Let's import the packages first.
 
-``` python
+``` {python}
 %config InlineBackend.figure_format = 'retina'
 import matplotlib.pyplot as plt
 import arviz as az
@@ -76,10 +52,9 @@ rng = random.PRNGKey(123)
 
 ## The data
 
-The data provided to us is in a file called `pest.csv`.
-Let's load the data and see what the structure is:
+The data provided to us is in a file called `pest.csv`.  Let's load the data and see what the structure is:
 
-``` python
+``` {python}
 pest_link = 'data/pest.csv'
 pest_data = pd.read_csv(pest_link, index_col=0)
 pest_data.index = pest_data.index - 1
@@ -91,81 +66,48 @@ We have access to the following fields:
 -   `complaints`: Number of complaints per building per month
 -   `building_id`: The unique building identifier
 -   `traps`: The number of traps used per month per building
--   `date`: The date at which the number of complaints are
-    recorded
--   `live_in_super`: An indicator for whether the building
-    has a live-in superintendent
+-   `date`: The date at which the number of complaints are recorded
+-   `live_in_super`: An indicator for whether the building has a live-in superintendent
 -   `age_of_building`: The age of the building
 -   `total_sq_foot`: The total square footage of the building
--   `average_tenant_age`: The average age of the tenants per
-    building
--   `monthly_average_rent`: The average monthly rent per
-    building
+-   `average_tenant_age`: The average age of the tenants per building
+-   `monthly_average_rent`: The average monthly rent per building
 -   `floors`: The number of floors per building
 
 First, let's see how many buildings we have data for:
 
-``` python
+``` {python}
 print(pest_data.building_id.unique())
 ```
 
-And make some plots of the raw data. First look at the variable we are
-trying to model, the `complaints`. We need to pass the
-`order` keyword to the count plot function because we want to
-plot [the zero
-counts](https://stackoverflow.com/questions/45352766/python-seaborn-plotting-frequencies-with-zero-values/45359713#45359713)
-in the data.
+And make some plots of the raw data. First look at the variable we are trying to model, the `complaints`. We need to pass the `order` keyword to the count plot function because we want to plot [the zero counts](https://stackoverflow.com/questions/45352766/python-seaborn-plotting-frequencies-with-zero-values/45359713#45359713) in the data.
 
-``` python
+``` {python}
 sns.countplot(data=pest_data,
               x='complaints',
               color=colors[0],
               order = range(pest_data.complaints.max()+1));
 ```
 
-And a scatter plot between the predictor and the outcome. because both
-`traps` and `complaints` are integers, we need to
-jitter them a bit so that they don't overlap.
+And a scatter plot between the predictor and the outcome. because both `traps` and `complaints` are integers, we need to jitter them a bit so that they don't overlap.
 
-``` python
+``` {python}
 pest_data['traps_jitter'] = pest_data['traps'] + random.normal(rng, [len(pest_data)]) * 0.3
 pest_data['complaints_jitter'] = pest_data['complaints'] + random.normal(rng, [len(pest_data)]) * 0.3
 sns.scatterplot(data=pest_data, x='traps_jitter', y='complaints_jitter');
 ```
 
-Just looking at the scatter plot, it's not immediately obvious how
-these two variables might be related, and there is certainly a large
-amount of variation. Without extra information, it might be difficult to
-do predictions of one variable using the other.
+Just looking at the scatter plot, it's not immediately obvious how these two variables might be related, and there is certainly a large amount of variation. Without extra information, it might be difficult to do predictions of one variable using the other.
 
-The first question we'll look at is just whether the number of
-`complaints` per building per month is associated with the
-number of `traps` per building per month, ignoring the
-temporal and across-building variation (we'll come back to those
-sources of variation later in the document). How should we model the
-number of complaints?
+The first question we'll look at is just whether the number of `complaints` per building per month is associated with the number of `traps` per building per month, ignoring the temporal and across-building variation (we'll come back to those sources of variation later in the document). How should we model the number of complaints?
 
 ## Modeling count data: Poisson distribution
 
-We only have some rudimentary information about what we should expect.
-The number of complaints should be, naturally, natural numbers, and the
-Poisson distribution is the common distribution for modeling integer
-valued variables, so that's where we'll start with.
+We only have some rudimentary information about what we should expect.  The number of complaints should be, naturally, natural numbers, and the Poisson distribution is the common distribution for modeling integer valued variables, so that's what we'll start with.
 
-Having decided to use a Poisson model for the outcome variable, we'll
-next decide how to relate the predictors to the parameters of this
-distribution. The Poisson distribution has only one parameter, which
-decides both the mean and the variance of the outcome. More
-specifically, both the mean and variance are equal to the rate
-parameter. When doing statistical modeling, we choose a distribution for
-some of its properties, then we examine whether the data match the other
-properties of the distribution. If not, we then consider how to improve
-the fit by revising the model.
+Having decided to use a Poisson model for the outcome variable, we'll next decide how to relate the predictors to the parameters of this distribution. The Poisson distribution has only one parameter, which decides both the mean and the variance of the outcome. More specifically, both the mean and variance are equal to the rate parameter. When doing statistical modeling, we choose a distribution for some of its properties, then we examine whether the data match the other properties of the distribution. If not, we then consider how to improve the fit by revising the model.
 
-Because the rate parameter is always positive, We will build a linear
-model with support on $\mathbb{R}$, then use the exponential
-transformation to limit the support to $\mathbb{R}^{+}$. For each
-observation we have
+Because the rate parameter is always positive, We will build a linear model with support on $\mathbb{R}$, then use the exponential transformation to limit the support to $\mathbb{R}^{+}$. For each observation we have
 
 $$
 \begin{aligned}
@@ -175,49 +117,19 @@ $$
 \end{aligned}
 $$
 
-One thing to notice is that although both the predictor,
-`traps`, and the outcome, `compalints`, can only
-be integers, this fact is not immediately obvious to our model. Here we
-are modeling `complaints` as a Poisson variable, so it's
-indeed interpreted as an integer value, but for `traps`, as
-far as our model is concerned, it's just a variable with any possible
-value on $\mathbb{R}$. For this reason we can transform
-`traps`, or any other variable we might include in our model
-later, so that the interpretation and computation are easier; but if we
-transform the outcome variable `complaints`, we need to
-consider whether the chosen probability distribution is still
-appropriate for the transformed variable.
+One thing to notice is that although both the predictor, `traps`, and the outcome, `compalints`, can only be integers, this fact is not immediately obvious to our model. Here we are modeling `complaints` as a Poisson variable, so it's indeed interpreted as an integer value, but for `traps`, as far as our model is concerned, it's just a variable with any possible value on $\mathbb{R}$. For this reason we can transform `traps`, or any other variable we might include in our model later, so that the interpretation and computation are easier; but if we transform the outcome variable `complaints`, we need to consider whether the chosen probability distribution is still appropriate for the transformed variable.
 
-We don't have much prior information about $\alpha$ and $\beta$, but we
-suspect that the intercept should be positive while the slope negative,
-so we give them some weakly information priors. To see if the priors
-actually make sense, we will have to see what kind of predictions the
-model makes, later, in the prior predictive checks.
+We don't have much prior information about $\alpha$ and $\beta$, but we suspect that the intercept should be positive while the slope negative, so we give them some weakly information priors. To see if the priors actually make sense, we will have to see what kind of predictions the model makes, later, in the prior predictive checks.
 
-Another thing worth noticing is that although to transform a variable
-$\eta$ on $\mathbb{R}$ to another variable $\lambda$ on $\mathbb{R}^+$,
-the [exponential
-transformation](https://en.wikipedia.org/wiki/Exponential_function#:~:text=In%20mathematics%2C%20an%20exponential%20function,x%20occurs%20as%20an%20exponent)
-is a natural choice, its not without its problems. We can take a look at
-the shape of the exponential function to notice that when $\eta$ is
-negative, a huge amount of change is $\eta$ leads to little change in
-$\lambda$ while when it's positive, a small change might leads to
-(exponentially, as the name indicates) huge jumps in $\lambda$ values.
+Another thing worth noticing is that although to transform a variable $\eta$ on $\mathbb{R}$ to another variable $\lambda$ on $\mathbb{R}^+$, the [exponential transformation](https://en.wikipedia.org/wiki/Exponential_function#:~:text=In%20mathematics%2C%20an%20exponential%20function,x%20occurs%20as%20an%20exponent) is a natural choice, its not without its problems. We can take a look at the shape of the exponential function to notice that when $\eta$ is negative, a huge amount of change is $\eta$ leads to little change in $\lambda$ while when it's positive, a small change might leads to (exponentially, as the name indicates) huge jumps in $\lambda$ values.
 
 ![](https://upload.wikimedia.org/wikipedia/commons/thumb/c/c6/Exp.svg/320px-Exp.svg.png)
 
-This can be a problem for us because it's very easy to have numerical
-overflows when using this transformation, when the rate parameter is too
-big. For this reason we'll try to transform the predictor variables to
-a reasonable range, and this also helps to ease the choice of priors.
+This can be a problem for us because it's very easy to have numerical overflows when using this transformation, when the rate parameter is too big. For this reason we'll try to transform the predictor variables to a reasonable range, and this also helps to ease the choice of priors.
 
 ### Model
 
-We'll choose some vaguely reasonable priors for the parameters.
-Technically the priors are also part of the model but because this part
-of the model is closely related to how we implement the model and also
-how we transform the data, we keep them separated from the other part of
-the model.
+We'll choose some vaguely reasonable priors for the parameters. Technically the priors are also part of the model but because this part of the model is closely related to how we implement the model and also how we transform the data, we keep them separated from the other part of the model.
 
 $$
 \begin{aligned}
@@ -226,8 +138,7 @@ $$
 \end{aligned}
 $$
 
-Is the prior flexible enough? We can check it through the prior
-predictive checks.
+Is the prior flexible enough? We can check it through the prior predictive checks.
 
 ``` {python}
 from numpyro import sample, plate, deterministic
@@ -246,11 +157,7 @@ def sp(traps):
 
 ### Prepare data
 
-we then collect the data used in modeling into separate dicts. Because
-the predictors `X`, and the outcomes, `y`, are
-treated fundamentally differently by our models, we also kept them
-separated. To avoid numerical overflow we have rescaled
-`traps`.
+we then collect the data used in modeling into separate dicts. Because the predictors `X`, and the outcomes, `y`, are treated fundamentally differently by our models, we also kept them separated. To avoid numerical overflow we have rescaled `traps`.
 
 ``` {python}
 sp_X = {
@@ -290,8 +197,7 @@ sp_params = {
 
 ### Prior predictive check
 
-Because the model is generative, after specifying the model, we can
-immediately generate samples from it.
+Because the model is generative, after specifying the model, we can immediately generate samples from it.
 
 ``` {python}
 from numpyro.infer import Predictive
@@ -516,27 +422,15 @@ this.
 
 ## Expanding the model: multiple predictors
 
-The simple Poisson model does not work very well so as an instinctive
-follow up, we might consider adding more predictor variables. Moreover,
-the manager told us that they expect there be a number of other reasons
-that one building might have more roach complaints than another. We'll
-incorporate this information into our model.
+The simple Poisson model does not work very well so as an instinctive follow up, we might consider adding more predictor variables. Moreover, the manager told us that they expect there be a number of other reasons that one building might have more roach complaints than another. We'll incorporate this information into our model.
 
-Currently, our model's mean parameter is a rate of complaints per 30
-days, but we're modeling a process that occurs over an area as well as
-over time. We have the square footage of each building, so if we add
-that information into the model, we can interpret our parameters as a
-rate of complaints per square foot per 30 days. A quick test shows us
-that there appears to be a relationship between the square footage of
-the building and the number of complaints received:
+Currently, our model's mean parameter is a rate of complaints per 30 days, but we're modeling a process that occurs over an area as well as over time. We have the square footage of each building, so if we add that information into the model, we can interpret our parameters as a rate of complaints per square foot per 30 days. A quick test shows us that there appears to be a relationship between the square footage of the building and the number of complaints received:
 
 ``` {python}
 sns.lmplot(x='total_sq_foot', y='complaints', data=pest_data);
 ```
 
-Using the property manager's intuition, we also include an extra pieces
-of information we know about the buildings - whether there is a live in
-super or not - into the model.
+Using the property manager's intuition, we also include an extra pieces of information we know about the buildings - whether there is a live in super or not - into the model.
 
 ``` {python}
 sns.violinplot(x='live_in_super', y='complaints', data=pest_data);
@@ -554,20 +448,21 @@ $$
 \begin{aligned}
 \textrm{complaints}_{n} & \sim \textrm{Poisson}(\textrm{sq\_foot}_b\lambda_{n}) \\
 \lambda_{n} & = \exp{(\eta_{n} )} \\
-\eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live\_in\_super}_{b}
+\eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live_in_super}_{b}
 \end{aligned}
 $$
 
-The term $\text{sq\_foot}$ is called an exposure term. If we log the
+The term $\text{sq_foot}$ is called an exposure term. If we log the
 term, we can put it in $\eta_{n}$:
 
 $$
 \begin{aligned}
 \textrm{complaints}_{n} & \sim \textrm{Poisson}(\lambda_{n}) \\
 \lambda_{n} & = \exp{(\eta_{n} )} \\
-\eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live\_in\_super}_{b} + \textrm{log\_sq\_foot}_b
+\eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live_in_super}_{b} + \textrm{log_sq_foot}_b
 \end{aligned}
 $$
+
 We'll use the same priors for $\alpha$ and $\beta$ as before, as for
 $\beta_{\text{super}}$, we suspect that having a super might reduce that
 amount of complaints so
@@ -579,6 +474,7 @@ $$
 \beta_{\text{super}} & \sim \textrm{Normal}(-0.5, 2) \\
 \end{aligned}
 $$
+
 Now we can write the model
 
 ``` {python}
@@ -744,12 +640,13 @@ numbers. In this interpretation, the Negative Binomial distribution has
 two parameters, the failure count $k$, and the probability of success,
 $p$. And for $\text{NegativeBinomial}(k, p)$, the mean and variance are
 
-```{=latex}
+$$
 \begin{aligned}
 \mathbb{m} &= \frac{k}{1-p} - k = \frac{pk}{1-p} \\
 \mathbb{v} &=  \frac{p}{(1-p)}  \frac{k}{(1-p)} = \frac{pk}{(1-p)^2}
 \end{aligned}
-```
+$$
+
 Although this parameterisation is easy to understand, it's not very
 interpretable for us when using it to model count data, and with a
 linear model for the rate parameter, like we did for the Poisson model.
@@ -759,12 +656,13 @@ $\text{Neg-Binomial}(y; \lambda, \phi)$, so that we can separate the
 modeling of mean and variance. Using this parameterisation, the mean and
 variance are
 
-```{=latex}
+$$
 \begin{aligned}
 \mathbb{m}  &= \lambda \\
 \mathbb{v}  &= \lambda + \lambda^2 / \phi .
 \end{aligned}
-```
+$$
+
 As we can see, the mean is the same as before, but now the variance is
 always bigger than the mean: this is how we meet the over-dispersion
 demand. As $\phi$ gets larger, the distribution becomes more
@@ -776,17 +674,20 @@ Combining the two representation, we can model the intensity parameter
 as before, and along with the new concentration parameter, we can obtain
 the parameterisation used in the TFP implementation
 
-```{=latex}
+$$
 \begin{aligned}
 k  &= \phi \\
 p  &= \frac{\lambda }{  \lambda + \phi} \\
 \end{aligned}
-```
+$$
+
 The Tensorflow implementation of Negative Binomial also accepts the log
 odds parameterisation, which is more convenient for us, and also
 numerically more stable:
 
-$$\log \frac{p}{1-p} = \log \lambda - \log \phi$$
+$$
+\log \frac{p}{1-p} = \log \lambda - \log \phi
+$$
 
 ``` {python}
 k, p = 3.5, 0.3
@@ -812,28 +713,31 @@ parameter `r`, but have nothing to do with the concentration
 and rate parameters before. With this parameterisation the parameters
 are defined as
 
-```{=latex}
+$$
 \begin{aligned}
 c &= k \\
 r &= \frac{1-p}{p}\\
 \end{aligned}
-```
+$$
+
 Or, using the rate-concentration parameterisation
 
-```{=latex}
+$$
 \begin{aligned}
 c  &= \phi \\
 r  &= \frac{\phi}{\lambda} \\
 \end{aligned}
-```
+$$
+
 and the mean and the variance can aslo be calculated
 
-```{=latex}
+$$
 \begin{aligned}
 \mathbb{m} &=  \frac{c}{r} \\
 \mathbb{v} &=  \frac{ c (1+r) }{r^2}
 \end{aligned}
-```
+$$
+
 ``` {python}
 from numpyro.distributions import GammaPoisson
 
@@ -853,28 +757,30 @@ data.
 using the mathematical manipulation above, we can write the Gamma
 Poisson model as:
 
-```{=latex}
+$$
 \begin{aligned}
 \text{complaints}_{n} & \sim \text{Gamma-Poisson}(c, r_{n}) \\
 c  &= \phi \\
 r_{n}  &= \frac{\phi}{\lambda_n} \\
 \log \lambda_{n} &= \alpha + \beta  {\rm traps}_{n} + \beta_{\rm super}  {\rm super}_{b} + \text{log\_sq\_foot}_{b}
 \end{aligned}
-```
+$$
+
 We don't have much information on what $\phi$ should be, apart from
 it's positive, we'll put a Log-normal distribution on it.
 
-```{=latex}
+$$
 \begin{aligned}
 \alpha & \sim \textrm{Normal}(1, 2) \\
 \beta & \sim \textrm{Normal}(-1, 2) \\
 \beta_{\text{super}} & \sim \textrm{Normal}(-0.5, 1) \\
 \phi & \sim \textrm{LogNormal}(0, 1) \\
 \end{aligned}
-```
+$$
+
 now translate the mathematical model into code
 
-``` {#model-gap .python}
+``` {python}
 from numpyro.distributions import LogNormal
 
 def gap(traps, live_in_super, log_sq_foot):
@@ -1071,7 +977,7 @@ will be modeled as a **variation** to the first and thus has zero mean.
 
 $$
 \begin{aligned}
-\log \lambda_{n} &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \beta_{\rm super}  {\rm super}_{b} + \text{log\_sq\_foot}_{b} \\
+\log \lambda_{n} &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \beta_{\rm super}  {\rm super}_{b} + \text{log_sq_foot}_{b} \\
 \pi &\sim \text{Normal}(0, \sigma) \\
 \end{aligned}
 $$
@@ -1082,7 +988,7 @@ like so:
 
 $$
 \begin{aligned}
-\log \lambda_{n}  &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \text{log\_sq\_foot}_b\\
+\log \lambda_{n}  &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \text{log_sq_foot}_b\\
 \pi &\sim \text{Normal}(\beta_{\text{super}}   \text{super}_b , \sigma) \\
 \end{aligned}
 $$
@@ -1102,15 +1008,16 @@ four columns:
 
 And the final model is
 
-```{=latex}
+$$
 \begin{aligned}
 \text{complaints}_{n} & \sim \text{Gamma-Poisson}(c, r_{n}) \\
 c  &= \phi \\
 r_{n}  &= \frac{\phi}{\lambda_n} \\
-\log \lambda_{n}  &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \text{log\_sq\_foot}_b\\
-\pi &\sim \text{Normal}(\texttt{building\_data}  \zeta, \sigma) \\
+\log \lambda_{n}  &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \text{log_sq_foot}_b\\
+\pi &\sim \text{Normal}(\texttt{building_data}  \zeta, \sigma) \\
 \end{aligned}
-```
+$$
+
 Now we have to choose a prior for $\sigma$. Because $\pi$ is the
 deviation of each building from the common intercept, and from the
 earlier models we know that the intercept seems to be between 2-3, which
@@ -1318,18 +1225,7 @@ can be trusted.
 
 ### Diagnostics
 
-We get a bunch of divergent transitions, which is an indication that
-there may be regions of the posterior that have not been explored by the
-Markov chains. Divergences are discussed in more detail in the original
-Stancon tutorial, and the
-[bayesplot](https://mc-stan.org/bayesplot/index.html) package in R, the
-[ArviZ](https://arviz-devs.github.io/arviz/) package in Python all have
-many functions to visualise and analyse the divergences, and Michael
-Betancourt's [paper on Hamiltonian Monte Carlo in
-general](https://arxiv.org/abs/1701.02434) and [diagnosing biased
-inference case study in
-specific](https://betanalpha.github.io/assets/case_studies/divergences_and_bias.html)
-contain many great insights on this topic.
+We get a bunch of divergent transitions, which is an indication that there may be regions of the posterior that have not been explored by the Markov chains. Divergences are discussed in more detail in the original Stancon tutorial, and the [bayesplot](https://mc-stan.org/bayesplot/index.html) package in R, the [ArviZ](https://arviz-devs.github.io/arviz/) package in Python all have many functions to visualise and analyse the divergences, and Michael Betancourt's [paper on Hamiltonian Monte Carlo in general](https://arxiv.org/abs/1701.02434) and [diagnosing biased inference case study in specific](https://betanalpha.github.io/assets/case_studies/divergences_and_bias.html) contain many great insights on this topic.
 
 Unfortunate for the didactic purpose and fortunate from a modeling point
 of view, we only have two divergent cases so the plots are not very
@@ -1356,10 +1252,8 @@ problematic.
 
 We have located two problems with our model:
 
-1.  the prior for $\sigma$ is too diffuse and we are having unreasonably
-    large predictions
-2.  when the sampled value for $\phi$ is too small, the posterior tends
-    to degenerate.
+1.  the prior for $\sigma$ is too diffuse and we are having unreasonably large predictions
+2.  when the sampled value for $\phi$ is too small, the posterior tends to degenerate.
 
 To solve these problems, we can put some more restrictive priors on
 these parameters, or we can reparameterise the model so that even when
@@ -1369,13 +1263,14 @@ the first solution.
 
 change to the model prior
 
-```{=latex}
+$$
 \begin{aligned}
 \phi & \sim \textrm{LogNormal}(0, 0.5) \\
 \sigma & \sim \textrm{LogNormal}(0, 0.5) \\
 \end{aligned}
-```
-``` {#model-vi2 .python}
+$$
+
+``` {python}
 def vi2(traps, log_sq_foot, b, building_data):
     """Multiple Gamma-Poisson Regression
     With Varying Interceps, more restrictive prior
@@ -1420,7 +1315,7 @@ The second solution is to sample an auxiliary variable $\pi_0$ from the
 standard normal first, then transform it to $\pi$, so that the sampling
 of $\sigma$ doesn't affect the sampling of $\pi$
 
-```{=latex}
+$$
 \begin{aligned}
 \text{complaints}_{n} & \sim \text{Gamma-Poisson}(c, r_{n}) \\
 c  &= \phi \\
@@ -1428,10 +1323,11 @@ r_{n}  &= \frac{\phi}{\lambda_n} \\
 \log \lambda_{n}  &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \text{log\_sq\_foot}_b\\
 \pi &= \texttt{building\_data}  \zeta + \sigma \pi_0 \\
 \end{aligned}
-```
+$$
+
 and the priors
 
-```{=latex}
+$$
 \begin{aligned}
 \alpha & \sim \textrm{Normal}(1, 2) \\
 \beta & \sim \textrm{Normal}(-1, 2) \\
@@ -1440,8 +1336,9 @@ and the priors
 \pi_0 & \sim \textrm{Normal}(0, 1) \\
 \sigma & \sim \textrm{LogNormal}(0, 0.5) \\
 \end{aligned}
-```
-``` {#model-vincp .python}
+$$
+
+``` {python}
 def vincp(traps, log_sq_foot, b, building_data):
     """Multiple Gamma-Poisson Regression
     With Varying Interceps, noncentred parameterisation
@@ -1774,14 +1671,16 @@ the data. Specifically, we'll add a **second variation to the
 intercept** to the linear model
 
 $$
-\log \lambda_{n}  = \alpha + \pi_b + \theta_m + (\beta + \kappa_b)  {\rm traps}_{n} + \text{log\_sq\_foot}_b\\
+\log \lambda_{n}  = \alpha + \pi_b + \theta_m + (\beta + \kappa_b)  {\rm traps}_{n} + \text{log_sq_foot}_b\\
 $$
 
 Previously, when modeling the varying intercepts (and also the varying
 slopes) for each building, we have assumed that all the varying
 intercepts are drawn independently from the same prior distribution
 
-$$ \pi \sim \text{Normal}(\texttt{building\_data}  \zeta, \sigma)$$
+$$ 
+\pi \sim \text{Normal}(\texttt{building_data}  \zeta, \sigma)
+$$
 
 We made this independence assumption because we have no knowledge on how
 the buildings might be related to each other; however, when grouping the
@@ -1900,9 +1799,9 @@ $$
 \text{complaints}_{n} & \sim \text{Gamma-Poisson}(c, r_{n}) \\
 c  &= \phi \\
 r_{n}  &= \frac{\phi}{\lambda_n} \\
-\log \lambda_{n}  &= \alpha + \pi_b + \theta_m + (\beta + \kappa_b)  {\rm traps}_{n} + \text{log\_sq\_foot}_b\\
-\pi &= \texttt{building\_data}  \zeta + \sigma \pi_0 \\
-\kappa &= \texttt{building\_data}  \gamma + \tau \kappa_0 \\
+\log \lambda_{n}  &= \alpha + \pi_b + \theta_m + (\beta + \kappa_b)  {\rm traps}_{n} + \text{log_sq_foot}_b\\
+\pi &= \texttt{building_data}  \zeta + \sigma \pi_0 \\
+\kappa &= \texttt{building_data}  \gamma + \tau \kappa_0 \\
 \theta_m &= \rho  \theta_{m-1} + \upsilon \epsilon_m,  m = 1, ..., 11 \\
 \theta_0 &\sim \left( \upsilon / \sqrt{1 - \rho^2} \right) \epsilon_0 \\
 \rho &= 2 \times \rho_0 - 1 \\
@@ -2306,12 +2205,16 @@ jointly multivariate normal for any finite value of $M$ and as we have
 seen, the AR(1) process is exactly that. In Gaussian process notation,
 we could write the above prior for $\theta$ as:
 
-$$ \theta_m \sim \text{GP}\left( 0, K(t | \upsilon,\rho) \right) $$
+$$ 
+\theta_m \sim \text{GP}\left( 0, K(t | \upsilon,\rho) \right) 
+$$
 
 In which $K(t | \upsilon,\rho)$ is called a kernel function and it
 defines the covariance matrix of the process over the domain $t$,
 
-$$ \text{Cov}(\theta_m,\theta_{m+h}) = k(m, m+h | \upsilon, \rho). $$
+$$ 
+\text{Cov}(\theta_m,\theta_{m+h}) = k(m, m+h | \upsilon, \rho). 
+$$
 
 And now we have a Gaussian process, with its covariance matrix
 parameterised by two hyperparameters, $\upsilon$ and $\rho$. What if we
@@ -2326,12 +2229,13 @@ where $\theta$ are the hyperparameters, that can be applied to construct
 covariance matrices, a very popular one, and one we are going to use
 here, is called the **exponentiated quadratic function**:
 
-```{=latex}
+$$
 \begin{aligned}
 k(m, m+h | \theta) & = \chi^2  \exp \left( - \dfrac{1}{2\ell^2} ((m+h) - m)^2 \right) \\
 & = \chi^2  \exp \left( - \dfrac{h^2}{2\ell^2} \right).
 \end{aligned}
-```
+$$
+
 The exponentiated quadratic kernel has two hyperparameters, $\chi$, the
 marginal standard deviation of the stochastic process, which determines
 the scale of the outputand and length-scale $\ell$, which determines the
@@ -2341,14 +2245,18 @@ the process; the larger $\ell$, the smoother the process.
 To implement the Gaussian process in practice we'll make use of the
 Cholsky decomposition we have introduced above. We first draw
 
-$$\epsilon \sim \text{MultiNormal}(0, I_M)$$
+$$
+\epsilon \sim \text{MultiNormal}(0, I_M)
+$$
 
 and because the elements are independent we can simply draw multiple
 samples from one dimensional standard normal; then we can construct the
 covariance matrix $\Sigma$ using the squared exponential kernel,
 decomposed it to get $L$, finally we transform it to get
 
-$$\theta = L\times\epsilon \sim \text{MultiNormal}(0, \Sigma)$$
+$$
+\theta = L\times\epsilon \sim \text{MultiNormal}(0, \Sigma)
+$$
 
 As we can see here, although Gaussian process is a non-parametric
 process defined on infinite dimensions but in practice, we are always
@@ -2467,7 +2375,7 @@ def gp(traps, log_sq_foot, b, building_data, m, M):
 The predictors, the fake predictors, and the observations are all the
 same as before, but we have to prepare the fake parameters.
 
-``` python
+``` {python}
 gp_params = {
     'α': 2 * jnp.ones(1),
     'β': -1 * jnp.ones(1),
@@ -2486,21 +2394,21 @@ gp_params = {
 
 ### prior predictive check
 
-``` python
+``` {python}
 gp_prior_pred = get_prior_pred(gp, ar_X)
 print(gp_prior_pred['y'].min(), gp_prior_pred['y'].max())
 for k, v in gp_prior_pred.items():
     print(k, v.shape)
 ```
 
-``` python
+``` {python}
 sns.kdeplot(gp_prior_pred['ell']);
 ```
 
 let's also look at the prior for the monthly effects. First the
 individual functions
 
-``` {#vis-gp-prior-individual .python}
+``` {python}
 fig, ax = plt.subplots(figsize=(16, 8))
 for i in random.randint(rng, [10], 0, 1000):
     ax.plot(gp_prior_pred['θ'][i], alpha=0.5)
@@ -2509,7 +2417,7 @@ for i in random.randint(rng, [10], 0, 1000):
 Compared with before, the prior for the monthly effects is much
 smoother. And the overall shape
 
-``` {#vis-gp-prior-general .python}
+``` {python}
 fig, ax = plt.subplots(figsize=(16, 8))
 for i in random.randint(rng, [400], 0, 1000):
     ax.plot(gp_prior_pred['θ'][i], color=colors[0], alpha=0.1)
@@ -2517,26 +2425,26 @@ for i in random.randint(rng, [400], 0, 1000):
 
 ### Fit the model to fake data
 
-``` python
+``` {python}
 recover_params(gp, gp_params, ar_fX);
 ```
 
 there are a few divergent transitions.
 
-### Fit model to the real data {#fit-model-to-the-real-data-2}
+### Fit model to the real data 
 
-``` python
+``` {python}
 gp_mcmc = run_mcmc(gp, ar_X, vs_y)
 ```
 
-``` python
+``` {python}
 gp_posterior_samples = gp_mcmc.get_samples()
 
 for k, v in gp_posterior_samples.items():
     print(k, v.shape)
 ```
 
-``` {#vis-gp-ell .python}
+``` {python}
 fig, axes = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
 sns.histplot(gp_prior_pred['ell'], ax=axes[0])
 sns.histplot(gp_posterior_samples['ell'], ax=axes[1]);
@@ -2548,13 +2456,13 @@ no way we can infer any value less than 1 from the data, since the
 smallest distance in the data (the months) is already 1; we see here
 that the scaling of the data is essential to the inference we can do.
 
-``` {#vis-gp-chi .python}
+``` {python}
 fig, axes = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
 sns.histplot(gp_prior_pred['χ'], ax=axes[0])
 sns.histplot(gp_posterior_samples['χ'], ax=axes[1]);
 ```
 
-``` {#vis-gp-chi-ell .python}
+``` {python}
 fig, axes = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
 sns.histplot(gp_prior_pred['χ'][:1000] / gp_prior_pred['ell'], ax=axes[0])
 sns.histplot(gp_posterior_samples['χ'][:1000] / gp_prior_pred['ell'], ax=axes[1]);
@@ -2562,7 +2470,7 @@ sns.histplot(gp_posterior_samples['χ'][:1000] / gp_prior_pred['ell'], ax=axes[1
 
 ### Posterior predictive check
 
-``` python
+``` {python}
 gp_posterior_pred = get_posterior_pred(gp, ar_X, gp_mcmc)
 print(gp_posterior_pred['y'].min(), gp_posterior_pred['y'].max())
 
@@ -2572,17 +2480,17 @@ for k, v in gp_posterior_pred.items():
 
 ### Density overlay
 
-``` python
+``` {python}
 overlay_kde(vs_y['y'], gp_posterior_pred['y'])
 ```
 
 ### Specific statistics
 
-``` python
+``` {python}
 ppc_stat(prop_zero, vs_y['y'], gp_posterior_pred['y'])
 ```
 
-``` python
+``` {python}
 ppc_stat(prop_large, vs_y['y'], gp_posterior_pred['y'])
 ```
 
@@ -2591,7 +2499,7 @@ ppc_stat(prop_large, vs_y['y'], gp_posterior_pred['y'])
 Let's look at the Gaussian process part of the model, and compare it
 with the AR(1) model
 
-``` {#vis-gp-ar .python}
+``` {python}
 ar_mean = ar_posterior_pred['θ'].mean(axis=0)
 ar_std = ar_posterior_pred['θ'].std(axis=0)
 gp_mean = gp_posterior_pred['θ'].mean(axis=0)
@@ -2616,13 +2524,13 @@ see extreme predictions.
 
 ### posterior prediction by groups
 
-``` {#vis-gp-building .python}
+``` {python}
 plot_grouped_mean(pest_more['complaints'], gp_posterior_pred['y'], pest_more['b'], 2, 5, (12,4))
 ```
 
 We have been able to further reduce the prediction variance.
 
-``` {#vis-gp-month .python}
+``` {python}
 plot_grouped_mean(pest_more['complaints'], gp_posterior_pred['y'], pest_more['m'], 6, 6, (12,12))
 ```
 
@@ -2640,3 +2548,5 @@ is at hand, is to construct a model that solves or approximately solves
 the problems. Since we didn't touch on the decision making part in this
 post, we'll stop the model building here because the model outcome data
 seems to resemble the observed data enough.
+
+Also the structure and substructure of the post might look quite repetitive, that's because we are aiming to enforce a certain procedure to build and validate our models.

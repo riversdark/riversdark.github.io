@@ -1,6 +1,6 @@
 ---
 title: "Understanding the attention mechanism"
-description: "It's all about (left and right) matrix multiplications."
+description: "All about matrix multiplications."
 date: 2023-06-19
 categories: ["transformer", "LLM"]
 jupyter: torch
@@ -173,7 +173,7 @@ We see that the weight matrices are both appearing on the left (for the second X
 
 The value matrix $\mathbf{V}$ is just a rewrite of $\mathbf{X} \mathbf{R}$.
 
-We can now implement the whole process 
+We can now implement the whole process. 
 
 ``` {python}
 T, E, H1, H2 = 4, 5, 6, 7
@@ -191,11 +191,40 @@ V = X @ W_V
 L = np.exp(Q @ K.T)
 L = L / L.sum(axis=1, keepdims=True)
 
-print("L shape:", L.shape)
+print("Q shape:", Q.shape)
+print("K shape:", K.shape)
 print("V shape:", V.shape)
+print("L shape:", L.shape)
 print("L @ V shape:", (L @ V).shape)
 print(L, V, L @ V)
 ```
+
+Note that we have used different embedding dimensions for the data matrix(E), right interaction matrix(H1), and the query/key embedding for the left interaction matrix(H2). In practice, since transformer models usually have multiple attention layers stacked together, and each attention layer also has an extra residual connection, the embedding dimensions for the data matrix and the right interaction matrix are usually the same (E=H1). Besides, the query/key embedding for the left interaction matrix is usually also kept the same as the embedding dimension for the data matrix (E=H2).
+
+``` {python}
+T, E = 4, 5
+
+X = np.random.randn(T, E)
+
+W_Q = np.random.randn(E, E)
+W_K = np.random.randn(E, E)
+W_V = np.random.randn(E, E)
+
+Q = X @ W_Q
+K = X @ W_K
+V = X @ W_V
+
+L = np.exp(Q @ K.T)
+L = L / L.sum(axis=1, keepdims=True)
+
+print("Q shape:", Q.shape)
+print("K shape:", K.shape)
+print("V shape:", V.shape)
+print("L shape:", L.shape)
+print("L @ V shape:", (L @ V).shape)
+print(L, V, L @ V)
+```
+
 
 ## Masked attention
 
@@ -262,3 +291,4 @@ Similiarly we will apply a comparable attention transformation to the
 token embedding x, so that the token embeddings are not only upgraded on
 the interaction matrix side, but also on the token embedding side.
 
+I'm curious to see what the effect will be if we add another softmax to the right interaction matrix (V), and if we modify the query/key embedding for the left interaction matrix.

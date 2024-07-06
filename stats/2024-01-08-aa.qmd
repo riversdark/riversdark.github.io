@@ -8,12 +8,12 @@ image: fig/aa.png
 draft: true
 ---
 
-
 ## Introduction
 
-this is a blog post, introduce multiple sequence alignment for amino acid sequences using HMM model. 
-
 the MSA result is then used as input for a Potts model, which predicts the contact map between amino acids. 
+
+## PDB file
+
 
 
 ## Alignment of Amino Acid Sequences

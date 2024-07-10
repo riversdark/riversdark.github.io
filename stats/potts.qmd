@@ -1,0 +1,393 @@
+---
+title: Contact map modeling with Potts models
+date: "2024-07-08"
+jupyter: jax
+format: pdf
+---
+
+## Introducing PDB data 
+
+The Protein Data Bank (PDB) file format is a standard for the representation of macromolecular structures. Each PDB file contains a plethora of information, including the sequence of amino acids or nucleotides, the spatial coordinates of each atom, and metadata about the experiment used to determine the structure.
+
+The sequence information in a PDB file provides the linear order of amino acids in a protein or nucleotides in a nucleic acid, which is crucial for understanding the primary structure of the molecule. The structural information, on the other hand, includes the 3D coordinates of each atom, can be used to visualize and analyze the molecule's tertiary and quaternary structures, and to study their function.
+
+Individual PDB files can be downloaded from the [RCSB PDB](https://www.rcsb.org/) website.
+
+``` {python}
+import requests
+
+def download_pdb(pdb_id, filename):
+    url = f'https://files.rcsb.org/download/{pdb_id}.pdb'
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(filename, 'wb') as file:
+            file.write(response.content)
+        print(f'{pdb_id} downloaded successfully as {filename}')
+    else:
+        print(f'Failed to download {pdb_id}')
+
+# Download the 6oim protein
+download_pdb('6oim', '6oim.pdb')
+```
+
+## The CATH40 dataset 
+
+A classical dataset for protein modeling is the CATH-40 dataset. CATH, which stands for Class, Architecture, Topology, Homology, is a hierarchical classification of protein domain structures. The "40" in CATH-40 refers to the sequence identity cutoff used to create a non-redundant set of protein domains.
+
+The data can be downloaded with the following code.
+
+``` {python}
+import os
+
+data_dir = 'data/cath'
+file_name = 'cath-dataset-nonredundant-S40.pdb.tgz'
+file_path = os.path.join(data_dir, file_name)
+
+if not os.path.exists(file_path):
+    os.makedirs(data_dir, exist_ok=True)
+    !wget -P {data_dir} ftp://orengoftp.biochem.ucl.ac.uk/cath/releases/latest-release/non-redundant-data-sets/{file_name}
+else:
+    print(f"File {file_name} already downloaded in {data_dir}")
+```
+
+We have a dataset with about 30K PDB files.
+
+``` bash
+tar -xzvf cath-dataset-nonredundant-S40.pdb.tgz
+cd dompdb
+for file in *; do mv "$file" "$file.pdb"; done
+ls -1 | wc -l  # 31881
+ls -A | head -n 3 # 12asA00.pdb 132lA00.pdb 153lA00.pdb
+```
+
+From which we can extract the info for model training.
+
+## Extracting sequence info from PDB 
+
+Each PDB file can contain multiple chains, representing different polypeptide sequences or nucleic acid strands within the macromolecular complex.
+
+We can extract the sequence information from a specified chain within a PDB file.
+
+``` {python}
+from Bio.PDB import PDBParser
+from Bio.SeqUtils import seq1
+
+def extract_sequence_from_pdb(pdb_filename, chain_id):
+    parser = PDBParser()
+    structure = parser.get_structure('protein', pdb_filename)
+    sequence = []
+
+    for model in structure:
+        for chain in model:
+            if chain.id == chain_id:
+                for residue in chain:
+                    if residue.id[0] == ' ':
+                        sequence.append(seq1(residue.resname))
+
+    return ''.join(sequence)
+
+# Example usage
+sequence = extract_sequence_from_pdb('6oim.pdb', 'A')
+print(f'Sequence: {sequence}')
+print(f'Length: {len(sequence)}')
+```
+
+save the sequence to a fasta file. Many bioinformatics tools require the input in fasta format.
+
+``` {python}
+def write_sequence_to_fasta(sequence, output_file):
+    with open(output_file, 'w') as file:
+        file.write(f'>sequence\n{sequence}')
+
+write_sequence_to_fasta(sequence, 'output_sequence.fasta')
+```
+
+
+## Multiple sequence alignment 
+
+Multiple sequence alignment (MSA) aligns multiple sequences to identify conserved regions and infer evolutionary relationships.
+
+If we have multiple sequences, we can use MSA tools to align these sequences. 
+If we have a single sequence, we can use these tools to align this sequence to a database of sequences.
+
+Here we use the [mmseqs2](https://github.com/soedinglab/mmseqs2) tool to align the sequences using the [Swiss-Prot database](https://www.swissprot.org/). (both the tools and the database can be modified.)
+
+The database can be downloaded with 
+
+``` bash
+mmseqs databases UniProtKB/Swiss-Prot swissprot tmp
+```
+
+and we can create a MSA search
+
+``` {python}
+import os
+
+def run_mmseqs2_search(fasta_file, output_dir, database):
+
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    
+    mmseqs2_command = f"mmseqs easy-search {fasta_file} {database} {output_dir}/alnRes.m8 {output_dir}/tmp --alignment-mode 3 --format-output 'query,target,qaln,taln'"
+    os.system(mmseqs2_command)
+    
+    print(f'Search completed. Results are in {output_dir}/alnRes.m8')
+
+run_mmseqs2_search('output_sequence.fasta', 'mmseqs2_output', 'swissprot')
+```
+
+the result will be a file with the following format
+
+``` {python}
+with open('mmseqs2_output/alnRes.m8', 'r') as file:
+    line = file.readline()
+    print(*line.split(), sep='\n')
+```
+
+we have the sequence ID, together with the target sequence and the aligned sequence. The file thus contains a list of amino acid sequences, aligned to the target sequence.
+
+## Extracting contact info from PDB 
+
+A protein contact map is a 2D representation of the 3D structure of a protein. It shows which amino acid residues are in close proximity to each other in the folded protein structure.  Contact maps provide a simplified view of protein structure that captures essential information about residue interactions.
+
+we are using 8 Å as the distance threshold for contact. This is a reasonable cutoff for protein contact, but can be adjusted based on the specific use case or experiment.
+
+``` {python}
+import numpy as np
+from Bio.PDB import PDBParser, is_aa
+
+def generate_contact_map(pdb_filename, chain_id, distance_threshold=8.0):
+    parser = PDBParser()
+    structure = parser.get_structure('protein', pdb_filename)
+    model = structure[0]
+    chain = model[chain_id]
+    
+    # Get the list of alpha carbon atoms
+    ca_atoms = [residue['CA'] for residue in chain if is_aa(residue)]
+    
+    num_residues = len(ca_atoms)
+    contact_map = np.zeros((num_residues, num_residues), dtype=int)
+    
+    for i, atom1 in enumerate(ca_atoms):
+        for j, atom2 in enumerate(ca_atoms):
+            if i != j:
+                distance = atom1 - atom2
+                if distance <= distance_threshold:
+                    contact_map[i, j] = 1
+    
+    return contact_map
+
+contact_map = generate_contact_map('6oim.pdb', 'A')
+print(contact_map)
+```
+
+plot the contact map
+
+``` {python}
+import matplotlib.pyplot as plt
+
+plt.imshow(contact_map, cmap='binary')
+plt.show()
+```
+
+And our goal in Potts modeling is to predict the contact map from the sequence and (or) the MSA.
+
+## Gibbs Sampling for Ising Models
+
+The Ising model represents a system where each site can be in one of two states, typically $+1$ or $-1$. The energy function of the Ising model with only edge potentials is given by:
+
+$$
+\mathcal{E}(\mathbf{x}; J) = -J \sum_{i \sim j} x_i x_j
+$$
+
+Where:
+
+- $J$ is the interaction strength between neighboring spins.
+- $x_i$ represents the state of site $i$.
+- The summation $\sum_{i \sim j}$ runs over all pairs of neighboring sites.
+
+The corresponding probability density function is:
+
+$$
+p(\mathbf{x}|\theta) = \frac{1}{Z(J)} \exp(-\mathcal{E}(\mathbf{x}; J))
+$$
+
+Substituting the energy function, we get:
+
+$$
+p(\mathbf{x}|\theta) = \frac{1}{Z(J)} \exp\left(J \sum_{i \sim j} x_i x_j\right)
+$$
+
+To express this in a product form, we note that:
+
+$$
+\exp\left(J \sum_{i \sim j} x_i x_j\right) = \prod_{i \sim j} \exp(J x_i x_j)
+$$
+
+Thus, the probability density function can be rewritten as:
+
+$$
+p(\mathbf{x}|\theta) = \frac{1}{Z(J)} \prod_{i \sim j} \exp(J x_i x_j)
+$$
+
+Where:
+
+- $\psi_{ij}(x_i, x_j; \theta) = \exp(J x_i x_j)$
+
+
+For Gibbs sampling, we need the full conditional distribution of each site $x_i$ given the states of all other sites $x_{-i}$. The full conditional distribution for $x_i = +1$ is:
+
+$$
+p(x_i = +1 | x_{-i}) = \frac{\prod_{j \in \text{nbr}(i)} \psi_{ij}(x_i = +1, x_j)}{\prod_{j \in \text{nbr}(i)} \psi_{ij}(x_i = +1, x_j) + \prod_{j \in \text{nbr}(i)} \psi_{ij}(x_i = -1, x_j)}
+$$
+
+Given $\psi(x_i, x_j) = \exp(J x_i x_j)$, substituting this into the full conditional distribution:
+
+$$
+p(x_i = +1 | x_{-i}) = \frac{\exp\left(J \sum_{j \in \text{nbr}(i)} x_j\right)}{\exp\left(J \sum_{j \in \text{nbr}(i)} x_j\right) + \exp\left(-J \sum_{j \in \text{nbr}(i)} x_j\right)}
+$$
+
+Let $\eta_i = \sum_{j \in \text{nbr}(i)} x_j$, which is the sum of the states of the neighbors of site $i$. Thus, the full conditional distribution simplifies to:
+
+$$
+p(x_i = +1 | x_{-i}) = \frac{\exp(J \eta_i)}{\exp(J \eta_i) + \exp(-J \eta_i)}
+$$
+
+## Gibbs Sampling for Potts Models
+
+The Potts model generalizes the Ising model to $q$ states. The energy function is:
+
+$$
+\mathcal{E}(\mathbf{x}) = -J \sum_{i \sim j} \mathbb{I}(x_i = x_j)
+$$
+
+Where $\mathbb{I}$ is the indicator function that is 1 when $x_i = x_j$ and 0 otherwise.
+
+The corresponding probability density function is:
+
+$$
+p(\mathbf{x}) = \frac{1}{Z} \exp(-\mathcal{E}(\mathbf{x}))
+$$
+
+Substituting the energy function, we get:
+
+$$
+p(\mathbf{x}) = \frac{1}{Z} \exp\left(J \sum_{i \sim j} \mathbb{I}(x_i = x_j)\right)
+$$
+
+For the full conditional distribution in the Potts model:
+
+$$
+p(x_i = k | x_{-i}) = \frac{\exp\left(J \sum_{n \in \text{nbr}(i)} \mathbb{I}(x_n = k)\right)}{\sum_{k'} \exp\left(J \sum_{n \in \text{nbr}(i)} \mathbb{I}(x_n = k')\right)}
+$$
+
+Letting $\eta_i^k = \sum_{n \in \text{nbr}(i)} \mathbb{I}(x_n = k)$, we get:
+
+$$
+p(x_i = k | x_{-i}) = \frac{\exp(J \eta_i^k)}{\sum_{k'} \exp(J \eta_i^{k'})}.
+$$
+
+## Example implementation
+
+Here is an example Gibbs sampling implementation for the Potts model, with parallel neighborhood sampling. Code borrowed form [here](https://github.com/probml/pyprobml/blob/master/notebooks/book2/04/gibbs_demo_potts.ipynb). We are considering energy functions with only edge potentials, as in the previous section.
+
+``` {python}
+import jax
+import jax.numpy as jnp
+from jax import lax
+from jax import vmap
+from jax import random
+from jax import jit
+import numpy as np
+
+key = random.PRNGKey(12234)
+K = 20
+ix = 128
+iy = 128
+
+kernel = jnp.zeros((3, 3, 1, 1), dtype=jnp.float32)
+kernel += jnp.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])[:, :, jnp.newaxis, jnp.newaxis]
+
+dn = lax.conv_dimension_numbers(
+    (K, ix, iy, 1),  
+    kernel.shape,  
+    ("NHWC", "HWIO", "NHWC"),
+)  
+
+mask = jnp.indices((K, iy, ix, 1)).sum(axis=0) % 2
+def checkerboard_pattern1(x):
+    return mask[0, :, :, 0]
+
+
+def checkerboard_pattern2(x):
+    return mask[1, :, :, 0]
+
+
+def make_checkerboard_pattern1():
+    arr = vmap(checkerboard_pattern1, in_axes=0)(jnp.array(K * [1]))
+    return jnp.expand_dims(arr, -1)
+
+
+def make_checkerboard_pattern2():
+    arr = vmap(checkerboard_pattern2, in_axes=0)(jnp.array(K * [1]))
+    return jnp.expand_dims(arr, -1)
+
+def sampler(K, key, logits):
+    # Sample from the energy using gumbel trick
+    u = random.uniform(key, shape=(K, ix, iy, 1))
+    sample = jnp.argmax(logits - jnp.log(-jnp.log(u)), axis=0)
+    sample = jax.nn.one_hot(sample, K, axis=0)
+    return sample
+
+
+def state_mat_update(mask, inverse_mask, sample, state_mat):
+    # Update the state_mat using masking
+    masked_sample = mask * sample
+    masked_state_mat = inverse_mask * state_mat
+    state_mat = masked_state_mat + masked_sample
+    return state_mat
+
+
+def energy(state_mat, jvalue):
+    # Calculate energy
+    logits = lax.conv_general_dilated(state_mat, jvalue * kernel, (1, 1), "SAME", (1, 1), (1, 1), dn)
+    return logits
+
+
+def gibbs_sampler(key, jvalue, niter=1):
+    key, key2 = random.split(key)
+
+    X = random.randint(key, shape=(ix, iy), minval=0, maxval=K)
+    state_mat = jax.nn.one_hot(X, K, axis=0)[:, :, :, jnp.newaxis]
+
+    mask = make_checkerboard_pattern1()
+    inverse_mask = make_checkerboard_pattern2()
+
+    @jit
+    def state_update(key, state_mat, mask, inverse_mask):
+        logits = energy(state_mat, jvalue)
+        sample = sampler(K, key, logits)
+        state_mat = state_mat_update(mask, inverse_mask, sample, state_mat)
+        return state_mat
+
+    for iter in range(niter):
+        key, key2 = random.split(key2)
+        state_mat = state_update(key, state_mat, mask, inverse_mask)
+        mask, inverse_mask = inverse_mask, mask
+
+    return jnp.squeeze(jnp.argmax(state_mat, axis=0), axis=-1)
+
+Jvals = [1.6, 1.75, 1.8]
+dfig, axs = plt.subplots(1, len(Jvals), figsize=(8, 8))
+for t in range(len(Jvals)):
+    arr = gibbs_sampler(key, Jvals[t], niter=500)
+    axs[t].imshow(arr, cmap="Accent", interpolation="nearest")
+    axs[t].set_title(f"J = {Jvals[t]}")
+
+```
+
+We can see that J value greatly affects the sampling results.
+
+## Remarks
+
+Our goal is to predict the protein contact map from its amino acid sequence, and this is an essential part to the workflow, in which we predict the protein 3D structure and function (illustrated here with the contact map) using the 1D information (here the amino acid sequence). The potential function, the neighborhood definition, and the resulting sampling algorithm are quite simplistic and thus restraining, which we believe can be improved. The definition of "contact" is also quite simple, and the MSA searching algorithm chosen is one from many that happens to be popular and fast.

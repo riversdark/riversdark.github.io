@@ -1,8 +1,11 @@
 ---
-title: Contact map modeling with Potts models
+title: "Modeling Amino Acid Sequences with HMM and Potts Models"
+description: "From multiple sequence alignments to contact map visualization"
 date: "2024-07-08"
+categories: ["Protein", "Bayesian"]
 jupyter: jax
-format: pdf
+image: fig/aa.png
+draft: true
 ---
 
 ## Introducing PDB data 

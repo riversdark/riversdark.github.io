@@ -1,0 +1,108 @@
+---
+title: "Transformer"
+date: 2023-10-08
+categories: [LLM]
+tags: [transformer]
+draft: true
+---
+
+## Self-attention
+
+By the end of the previous post we have established attention, and we understand that by left and right interaction we have been able to make the tokens interact with each other, and train the model for better token embeddings.
+
+``` {python}
+def attention(X, seed=123):
+    np.random.seed(seed)
+    T, E = X.shape
+    W_Q = np.random.randn(E, E)
+    W_K = np.random.randn(E, E)
+    W_V = np.random.randn(E, E)
+
+    Q = X @ W_Q
+    K = X @ W_K
+    V = X @ W_V
+
+    attention_scores = Q @ K.T
+
+    L = np.exp(attention_scores)
+    L = L / L.sum(axis=1, keepdims=True)
+
+    return L @ V
+
+# Example usage
+T, E = 4, 5
+X = np.random.randn(T, E)
+output = attention(X)
+```
+
+and masked, or causal attention. Although we should note that "causal" here is a bit of a misnomer, as it's not really a causal model.
+
+``` {python}
+def causal_attention(X, seed=123):
+    np.random.seed(seed)
+    T, E = X.shape
+    W_Q = np.random.randn(E, E)
+    W_K = np.random.randn(E, E)
+    W_V = np.random.randn(E, E)
+
+    Q = X @ W_Q
+    K = X @ W_K
+    V = X @ W_V
+
+    mask = np.tril(np.ones((T, T)))
+    attention_scores = Q @ K.T
+    attention_scores = np.where(mask == 1, attention_scores, -np.inf)
+
+    L = np.exp(attention_scores)
+    L = L / L.sum(axis=1, keepdims=True)
+
+    return L @ V
+
+# Example usage
+T, E = 4, 5
+X = np.random.randn(T, E)
+output = causal_attention(X)
+```
+
+
+## Scaled self-attention
+
+Scaled attention helps with the variance of the attention scores
+
+``` {python}
+def scaled_attention(X, seed=123):
+    np.random.seed(seed)
+    T, E = X.shape
+    W_Q = np.random.randn(E, E)
+    W_K = np.random.randn(E, E)
+    W_V = np.random.randn(E, E)
+
+    Q = X @ W_Q
+    K = X @ W_K
+    V = X @ W_V
+
+    # Scaled dot-product attention
+    attention_scores = (Q @ K.T) / np.sqrt(E)
+
+    L = np.exp(attention_scores)
+    L = L / L.sum(axis=1, keepdims=True)
+
+    return L @ V
+
+# Example usage
+T, E = 4, 5
+X = np.random.randn(T, E)
+output = scaled_attention(X)
+```
+
+## Multi-head attention
+
+## Residual connection
+
+## Causal attention
+
+## Positional encoding
+
+## Transformer layer
+
+## Ending remarks

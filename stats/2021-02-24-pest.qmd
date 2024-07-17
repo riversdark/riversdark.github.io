@@ -33,8 +33,8 @@ With this data, we'd like to model how complaints change as the number of traps 
 Let's import the packages first.
 
 ``` {python}
-%config InlineBackend.figure_format = 'retina'
 import matplotlib.pyplot as plt
+import numpy as np
 import arviz as az
 import pandas as pd
 import seaborn as sns
@@ -46,18 +46,17 @@ numpyro.set_host_device_count(4)
 
 import jax.numpy as jnp
 from jax import random
-from jax.config import config; config.update("jax_enable_x64", True)
 rng = random.PRNGKey(123)
 ```
 
 ## The data
 
-The data provided to us is in a file called `pest.csv`.  Let's load the data and see what the structure is:
+The data provided to us is in a file called `pest_data.RDS`.  Let's load the data and see what the structure is:
 
 ``` {python}
-pest_link = 'data/pest.csv'
-pest_data = pd.read_csv(pest_link, index_col=0)
-pest_data.index = pest_data.index - 1
+import pyreadr
+result = pyreadr.read_r('data/pest_data.RDS')
+pest_data = result[None]  
 pest_data.columns
 ```
 
@@ -80,13 +79,16 @@ First, let's see how many buildings we have data for:
 print(pest_data.building_id.unique())
 ```
 
-And make some plots of the raw data. First look at the variable we are trying to model, the `complaints`. We need to pass the `order` keyword to the count plot function because we want to plot [the zero counts](https://stackoverflow.com/questions/45352766/python-seaborn-plotting-frequencies-with-zero-values/45359713#45359713) in the data.
+And make some plots of the raw data. First look at the variable we are trying to model, the `complaints`.
 
 ``` {python}
-sns.countplot(data=pest_data,
-              x='complaints',
-              color=colors[0],
-              order = range(pest_data.complaints.max()+1));
+max_complaints = int(pest_data.complaints.max())
+complete_range = np.arange(0, max_complaints + 1)
+
+complaint_counts = pest_data['complaints'].value_counts().reindex(complete_range, fill_value=0)
+complaint_counts_df = pd.DataFrame({'complaints': complaint_counts.index, 'count': complaint_counts.values})
+
+sns.barplot(data=complaint_counts_df, x='complaints', y='count', color=colors[0]);
 ```
 
 And a scatter plot between the predictor and the outcome. because both `traps` and `complaints` are integers, we need to jitter them a bit so that they don't overlap.
@@ -284,7 +286,7 @@ def run_mcmc(model, X, Y, nwarmup=2000, nsample=2000, nchain=2, no_det=True):
     no_det: Boolean, exclude deterministic variables in summary"""
     kernel = NUTS(condition(model, data=Y))
     rng_key = random.PRNGKey(10)
-    mcmc = MCMC(kernel, num_warmup=nwarmup, num_samples=nsample, num_chains=nchain, progress_bar=False)
+    mcmc = MCMC(kernel, num_warmup=nwarmup, num_samples=nsample, num_chains=nchain, chain_method='vectorized')
     mcmc.run(rng_key, **X, extra_fields=('potential_energy', 'diverging'))
     mcmc.print_summary(exclude_deterministic=no_det)
     return mcmc
@@ -377,7 +379,7 @@ middle range values, and again under-predict large values. How can we
 improve on this? The most obvious choice, is to add more predictors, so
 as to increase the variation in the data.
 
-### Specific statistics
+### Bospoke diagnostics
 
 Apart from looking at the overall distribution of the prediction, we can
 also look at specific statistics **of the overall distribution**. For
@@ -446,7 +448,7 @@ And the model now becomes
 
 $$
 \begin{aligned}
-\textrm{complaints}_{n} & \sim \textrm{Poisson}(\textrm{sq\_foot}_b\lambda_{n}) \\
+\textrm{complaints}_{n} & \sim \textrm{Poisson}(\textrm{sq_foot}_b\lambda_{n}) \\
 \lambda_{n} & = \exp{(\eta_{n} )} \\
 \eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live_in_super}_{b}
 \end{aligned}
@@ -587,7 +589,7 @@ overlay_kde(sp_y['y'], mp_posterior_pred['y'])
 Looks much better than before because the real data lay somewhat in
 between the predictions. Still, the disparity is clear.
 
-### Specific statistics
+### Bespoke diagnostics
 
 And prediction for small and large values
 
@@ -617,40 +619,7 @@ over-dispersion, that is, the observed data have more variance than the
 distribution used to model them. A Poisson model doesn't fit
 over-dispersed count data very well because the same parameter $\lambda$
 controls both the expected counts and the variance of these counts. The
-natural alternative to this is the negative binomial model.
-
-NumPyro doesn't have a native implementation of the Negative Binomial
-distribution, but we have two alternatives: the Tensorflow
-implementation that can be imported into NumPyro, or another
-parameterisation known as the Gamma-Poisson distribution.
-
-``` {python}
-from numpyro.contrib.tfp.distributions import NegativeBinomial
-```
-
-The Poisson distribution can be interpreted as the number of successes
-happening at a certain rate, across certain time period and certain
-space, as we are using here; it can also be interpreted as the sum of
-Bernoulli trials with a constant probability of success. Similarly, the
-Negative Binomial distribution (in NumPyro, because there are many
-different variations) can be interpreted as the sum of Bernoulli trials,
-but as the sum of successes we have before a certain number of failures
-is reached. Like the Poisson, it also has support on all the natural
-numbers. In this interpretation, the Negative Binomial distribution has
-two parameters, the failure count $k$, and the probability of success,
-$p$. And for $\text{NegativeBinomial}(k, p)$, the mean and variance are
-
-$$
-\begin{aligned}
-\mathbb{m} &= \frac{k}{1-p} - k = \frac{pk}{1-p} \\
-\mathbb{v} &=  \frac{p}{(1-p)}  \frac{k}{(1-p)} = \frac{pk}{(1-p)^2}
-\end{aligned}
-$$
-
-Although this parameterisation is easy to understand, it's not very
-interpretable for us when using it to model count data, and with a
-linear model for the rate parameter, like we did for the Poisson model.
-One parameterisation that meets such demands is to augment the Poisson
+natural alternative to this is the negative binomial model, which augments the Poisson
 distribution with a **concentration** parameter, $\phi$, as
 $\text{Neg-Binomial}(y; \lambda, \phi)$, so that we can separate the
 modeling of mean and variance. Using this parameterisation, the mean and
@@ -670,35 +639,7 @@ concentrated, the term $\lambda^2 / \phi$ approaches zero, the variance
 of the negative-binomial approaches $\lambda$, and the Negative Binomial
 gets closer and closer to the Poisson.
 
-Combining the two representation, we can model the intensity parameter
-as before, and along with the new concentration parameter, we can obtain
-the parameterisation used in the TFP implementation
-
-$$
-\begin{aligned}
-k  &= \phi \\
-p  &= \frac{\lambda }{  \lambda + \phi} \\
-\end{aligned}
-$$
-
-The Tensorflow implementation of Negative Binomial also accepts the log
-odds parameterisation, which is more convenient for us, and also
-numerically more stable:
-
-$$
-\log \frac{p}{1-p} = \log \lambda - \log \phi
-$$
-
-``` {python}
-k, p = 3.5, 0.3
-nb = NegativeBinomial(total_count=k, probs=p)
-
-print(nb.mean(), k*p / (1-p), nb.variance(), k*p / (1-p)**2)
-```
-
-There is another implementation of the Negative Binomial distribution,
-natively implemented in NumPyro, that directly augments the Poisson
-distribution, and is called the Gamma-Poisson distribution. Our goal is
+Approaching the problem from a different perspective, since our goal is
 to use a distribution to model the count data, with over-dispersion, the
 natural choice, if one Poisson distribution with constant $\lambda$ is
 too limited, is to use a family of Poissons with varying $\lambda$.
@@ -710,18 +651,7 @@ Negative Binomial distribution.
 The Gamma-Poisson distribution implementation in NumPyro is
 parameterised with a concentration parameter `c` and a rate
 parameter `r`, but have nothing to do with the concentration
-and rate parameters before. With this parameterisation the parameters
-are defined as
-
-$$
-\begin{aligned}
-c &= k \\
-r &= \frac{1-p}{p}\\
-\end{aligned}
-$$
-
-Or, using the rate-concentration parameterisation
-
+and rate parameters before. 
 $$
 \begin{aligned}
 c  &= \phi \\
@@ -746,11 +676,7 @@ gap = GammaPoisson(c,r)
 print(gap.mean, c/r, gap.variance, c*(1+r)/r**2)
 ```
 
-Another difference with the native NumPyro implementation, is that the
-mean and variance are attributes while with the Tensorflow one they are
-methods. Because this natively implemented version works better with
-other NumPyro functionalities, we'll use this distribution to model our
-data.
+Because this natively implemented version works better with other NumPyro functionalities, we'll use this distribution to model our data.
 
 ### Model
 
@@ -762,7 +688,7 @@ $$
 \text{complaints}_{n} & \sim \text{Gamma-Poisson}(c, r_{n}) \\
 c  &= \phi \\
 r_{n}  &= \frac{\phi}{\lambda_n} \\
-\log \lambda_{n} &= \alpha + \beta  {\rm traps}_{n} + \beta_{\rm super}  {\rm super}_{b} + \text{log\_sq\_foot}_{b}
+\log \lambda_{n} &= \alpha + \beta  {\rm traps}_{n} + \beta_{\rm super}  {\rm super}_{b} + \text{log_sq_foot}_{b}
 \end{aligned}
 $$
 
@@ -896,7 +822,7 @@ prediction has other problems.
 
 One general way to do this is using the residual plots.
 
-### posterior prediction by groups
+### Bespoke diagnostics: posterior prediction by groups
 
 We haven't used the fact that the data are clustered by building and
 time yet. A posterior predictive check might elucidate whether it would
@@ -921,7 +847,7 @@ def plot_grouped_mean(obs, pred, group, nrow, ncol, figsize):
         p_mean = p.mean(0)
         sns.histplot(x=p_mean, color=colors[0], ax=ax)
         ax.axvline(y_mean, color=colors[1], lw=2)
-        ax.set_title(id)
+        ax.set_title(int(id))
         plt.tight_layout()
 ```
 
@@ -1127,7 +1053,7 @@ But we can also check the prediction for the hierarchical groups to
 better understand the model.
 
 ``` {python}
-vi_prior_pred = get_prior_pred(vi, vi_X)
+vi_prior_pred = get_prior_pred(vi, vi_X, n=1000)
 vi_prior_pred.keys()
 ```
 
@@ -1144,8 +1070,7 @@ let's look at the prior distribution.
 clipped_kde(vi_prior_pred['λ']);
 ```
 
-We can see that most of the $\lambda$s are small, but we have a very
-long tail.
+We can see that most of the $\lambda$s are small, but we have a very long tail with extremely large realizations.
 
 ``` {python}
 print(vi_prior_pred['y'].min(), vi_prior_pred['y'].max())
@@ -1155,16 +1080,13 @@ print(vi_prior_pred['y'].min(), vi_prior_pred['y'].max())
 print(jnp.sum(vi_prior_pred['y'] < 0))
 ```
 
-As we can see here, we're having numerical overflow. Let's see where
-the problem is happening
+As we can see here, we're having numerical overflow. Let's see where the problem is happening
 
 ``` {python}
 print(jnp.where(jnp.any(vi_prior_pred['y'] < 0, axis=1)))
 ```
 
-we have
-`jnp.where(jnp.any(vi_prior_pred['y'] < 0, axis=1))[0].shape[0]`{.python}
-{{{results(`4`)}}} samples having overflow
+we have some samples with numerical overflow
 
 ``` {python}
 for id in jnp.where(jnp.any(vi_prior_pred['y'] < 0, axis=1))[0]:
@@ -1192,7 +1114,7 @@ recover_params(vi, vi_params, vi_fX);
 We are not recovering $\zeta$ very well, but this is to be expected,
 because at the building level we only have 10 data points, yet we have 4
 $\zeta$s, 10 $\pi$s, and one $\sigma$. We simply don't have enough data
-to make good inference.
+to make confident inferences.
 
 ### Fit the real data
 
@@ -1223,7 +1145,7 @@ sns.histplot(vi_post_samples['σ'], ax=axes[1]);
 we have learned a lot from the model, but we don't know if the result
 can be trusted.
 
-### Diagnostics
+### MCMC Diagnostics
 
 We get a bunch of divergent transitions, which is an indication that there may be regions of the posterior that have not been explored by the Markov chains. Divergences are discussed in more detail in the original Stancon tutorial, and the [bayesplot](https://mc-stan.org/bayesplot/index.html) package in R, the [ArviZ](https://arviz-devs.github.io/arviz/) package in Python all have many functions to visualise and analyse the divergences, and Michael Betancourt's [paper on Hamiltonian Monte Carlo in general](https://arxiv.org/abs/1701.02434) and [diagnosing biased inference case study in specific](https://betanalpha.github.io/assets/case_studies/divergences_and_bias.html) contain many great insights on this topic.
 
@@ -1261,7 +1183,7 @@ the parameters take extreme values, the posterior geometry is still
 smooth enough to not cause trouble for the HMC algorithm. We first try
 the first solution.
 
-change to the model prior
+change  the model prior
 
 $$
 \begin{aligned}
@@ -1320,8 +1242,8 @@ $$
 \text{complaints}_{n} & \sim \text{Gamma-Poisson}(c, r_{n}) \\
 c  &= \phi \\
 r_{n}  &= \frac{\phi}{\lambda_n} \\
-\log \lambda_{n}  &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \text{log\_sq\_foot}_b\\
-\pi &= \texttt{building\_data}  \zeta + \sigma \pi_0 \\
+\log \lambda_{n}  &= \alpha + \pi_b + \beta  {\rm traps}_{n} + \text{log_sq_foot}_b\\
+\pi &= \texttt{building_data}  \zeta + \sigma \pi_0 \\
 \end{aligned}
 $$
 

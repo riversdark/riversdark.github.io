@@ -680,8 +680,7 @@ Because this natively implemented version works better with other NumPyro functi
 
 ### Model
 
-using the mathematical manipulation above, we can write the Gamma
-Poisson model as:
+using the mathematical manipulation above, we can write the Gamma Poisson model as:
 
 $$
 \begin{aligned}
@@ -851,8 +850,7 @@ def plot_grouped_mean(obs, pred, group, nrow, ncol, figsize):
         plt.tight_layout()
 ```
 
-Let's look at the model prediction, grouped by the buildings and by the
-time.
+Let's look at the model prediction, grouped by the buildings and by the time.
 
 ``` {python}
 plot_grouped_mean(pest_data['complaints'], gap_posterior_pred['y'], pest_data['building_id'], 2, 5, (12,4))
@@ -1446,11 +1444,13 @@ have observations for each building. So from now on we'll use the
 extended data set.
 
 ``` {python}
-pest_more_link = 'data/more_pest.csv'
+import pyreadr
+result = pyreadr.read_r('data/pest_data_longer_stan_dat.RDS')
+pest_more = result[None]  
+pest_more.columns
 ```
 
 ``` {python}
-pest_more = pd.read_csv(pest_more_link, index_col=0)
 pest_more['m'] = pest_more.m - 1
 pest_more['b'] = pest_more.b - 1
 pest_more.index = pest_more.index - 1

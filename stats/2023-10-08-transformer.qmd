@@ -1,108 +1,91 @@
 ---
 title: "Transformer"
 date: 2023-10-08
-categories: [LLM]
-tags: [transformer]
+categories: [transformer, LLM]
+jupyter: torch
 draft: true
 ---
 
-## Self-attention
-
-By the end of the previous post we have established attention, and we understand that by left and right interaction we have been able to make the tokens interact with each other, and train the model for better token embeddings.
+In a previous post we have discussed the attention mechanism, which takes the token embedding matrix as input, and achieves token interaction and embedding update through left and right interaction. In this post we'll use the attention mechanism to build a full transformer layer. As before we'll show "what" has been done, but special attention will be given to the "how" behind the "what", i.e. the motivations for the manipulations.
 
 ``` {python}
-def attention(X, seed=123):
-    np.random.seed(seed)
-    T, E = X.shape
-    W_Q = np.random.randn(E, E)
-    W_K = np.random.randn(E, E)
-    W_V = np.random.randn(E, E)
+import numpy as np
+np.random.seed(0)
 
-    Q = X @ W_Q
-    K = X @ W_K
-    V = X @ W_V
-
-    attention_scores = Q @ K.T
-
-    L = np.exp(attention_scores)
-    L = L / L.sum(axis=1, keepdims=True)
-
-    return L @ V
-
-# Example usage
-T, E = 4, 5
-X = np.random.randn(T, E)
-output = attention(X)
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set_theme(palette='Set2')
+colors = sns.color_palette()
 ```
 
-and masked, or causal attention. Although we should note that "causal" here is a bit of a misnomer, as it's not really a causal model.
+## Self-attention
+
+By the end of the previous post we have established attention, and by left and right interaction we have been able to make the tokens interact with each other, and train the model for better token embeddings.
+
+$$
+\begin{align*}
+\mathbf{Y} &= \mathbf{L} \mathbf{X} \mathbf{R} \\
+&= \text{softmax}(\mathbf{Q} \mathbf{K}^\top) \mathbf{V}
+\end{align*}
+$$
 
 ``` {python}
-def causal_attention(X, seed=123):
-    np.random.seed(seed)
-    T, E = X.shape
-    W_Q = np.random.randn(E, E)
-    W_K = np.random.randn(E, E)
-    W_V = np.random.randn(E, E)
-
-    Q = X @ W_Q
-    K = X @ W_K
-    V = X @ W_V
-
-    mask = np.tril(np.ones((T, T)))
-    attention_scores = Q @ K.T
-    attention_scores = np.where(mask == 1, attention_scores, -np.inf)
-
-    L = np.exp(attention_scores)
-    L = L / L.sum(axis=1, keepdims=True)
-
-    return L @ V
-
-# Example usage
 T, E = 4, 5
 X = np.random.randn(T, E)
-output = causal_attention(X)
+
+W_Q = np.random.randn(E, E)
+W_K = np.random.randn(E, E)
+W_V = np.random.randn(E, E)
+
+Q = X @ W_Q
+K = X @ W_K
+V = X @ W_V
+
+attention_scores = Q @ K.T
+
+L = np.exp(attention_scores)
+L = L / L.sum(axis=1, keepdims=True)
+
+output = L @ V
+print("Output shape:", output.shape)
+print(output)
 ```
 
 
 ## Scaled self-attention
 
-Scaled attention helps with the variance of the attention scores
+So far we have been using an embedding dimension of 5, but in modern LLMs the embedding dimension is often much larger, and this might lead to potential issues. To see this we can expand the embedding dimension to 1024, and calculate the variance of the QK product, the exponential, and the softmax weights, and the softmax output.
 
-``` {python}
-def scaled_attention(X, seed=123):
-    np.random.seed(seed)
-    T, E = X.shape
-    W_Q = np.random.randn(E, E)
-    W_K = np.random.randn(E, E)
-    W_V = np.random.randn(E, E)
+E=1024, calculate QK variance, plot the product, the exponential, and the softmax weights, and the softmax output.
 
-    Q = X @ W_Q
-    K = X @ W_K
-    V = X @ W_V
 
-    # Scaled dot-product attention
-    attention_scores = (Q @ K.T) / np.sqrt(E)
-
-    L = np.exp(attention_scores)
-    L = L / L.sum(axis=1, keepdims=True)
-
-    return L @ V
-
-# Example usage
-T, E = 4, 5
-X = np.random.randn(T, E)
-output = scaled_attention(X)
-```
+$$
+\begin{align*}
+\mathbf{Y} &= \text{softmax}\left(\frac{\mathbf{Q} \mathbf{K}^\top}{\sqrt{E}}\right) \mathbf{V} \\
+\end{align*}
+$$
 
 ## Multi-head attention
 
+We are using attention to capture the inter-sentence relationships, i.e. the syntactic and semantic relationships between sentences. However we know that there might be more than one relationship among the sentences, on more than one level. For this reason we can have multiple attentions, each capturing one syntactic relationship. Each of these attentions will be called an attention head. And after learning these heads separately, we can further pass the concatenated heads through a linear network so that the learned relationships are further integrated together. The final result is analogous to an ensemble of models, with each model capturing one relationship. 
+
 ## Residual connection
 
-## Causal attention
+Residual connections, also known as skip connections, are a fundamental component in modern deep learning architectures, particularly in deep networks like transformers. Introduced by He et al. in the ResNet paper, residual connections help mitigate the vanishing gradient problem, which is prevalent in very deep networks. By allowing the gradient to flow directly through the network layers, these connections enable the training of much deeper models than was previously possible.
+
+In essence, a residual connection bypasses one or more layers by adding the input of a layer to its output. Mathematically, if the input to a layer is denoted as \( x \) and the transformation applied by the layer is \( F(x) \), the output of the layer with a residual connection is \( y = F(x) + x \). This simple addition helps preserve the original input signal, ensuring that the network can learn the identity function more easily if needed.
+
+The impact of residual connections on training efficiency is significant. They allow for faster convergence during training by providing a direct path for the gradient to backpropagate through the network. This reduces the likelihood of gradients becoming too small (vanishing gradients) or too large (exploding gradients), both of which can hinder the training process.
+
+Moreover, residual connections enhance the expressivity of the model. By enabling the construction of deeper networks, they allow the model to learn more complex representations and capture intricate patterns in the data. This increased depth and expressivity are crucial for tasks that require understanding high-level abstractions, such as natural language processing and computer vision.
+
+In summary, residual connections are a powerful technique that improves the training efficiency and expressivity of deep neural networks. They enable the construction of very deep models, which are essential for capturing complex patterns and achieving state-of-the-art performance in various machine learning tasks.
+
+
+## Transformer layer
 
 ## Positional encoding
 
-## Transformer layer
+## Architecture review
 
 ## Ending remarks

@@ -3,3 +3,4 @@
 stats/tmp/
 stats/swissprot*
 stats/data/cath/
+*.code-workspace

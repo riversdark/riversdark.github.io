@@ -54,9 +54,9 @@ rng = random.PRNGKey(123)
 The data provided to us is in a file called `pest_data.RDS`.  Let's load the data and see what the structure is:
 
 ``` {python}
-import pyreadr
-result = pyreadr.read_r('data/pest_data.RDS')
-pest_data = result[None]  
+pest_link = 'data/pest.csv'
+pest_data = pd.read_csv(pest_link, index_col=0)
+pest_data.index = pest_data.index - 1
 pest_data.columns
 ```
 
@@ -611,19 +611,11 @@ than Poisson. We turn next to the negative binomial distribution.
 
 ## Modeling overdispersed data: Negative Binomial distribution
 
-When modeling the data using a Poisson distribution, we saw that the
-model didn't fit as well to the data as we would like. In particular
-the model underpredicted low and high numbers of complaints, and
-overpredicted the medium number of complaints. This is one indication of
-over-dispersion, that is, the observed data have more variance than the
-distribution used to model them. A Poisson model doesn't fit
-over-dispersed count data very well because the same parameter $\lambda$
-controls both the expected counts and the variance of these counts. The
-natural alternative to this is the negative binomial model, which augments the Poisson
-distribution with a **concentration** parameter, $\phi$, as
-$\text{Neg-Binomial}(y; \lambda, \phi)$, so that we can separate the
-modeling of mean and variance. Using this parameterisation, the mean and
-variance are
+When modeling the data using a Poisson distribution, we saw that the model didn't fit as well to the data as we would like. In particular the model underpredicted low and high numbers of complaints, and overpredicted the medium numbers. This is one indication of over-dispersion, that is, the observed data have more variance than the distribution used to model them. A Poisson model doesn't fit over-dispersed count data very well because the same parameter $\lambda$ controls both the expected counts and the variance of these counts. 
+
+To put the problem in a broader context, this is an inherent limitation of all parametric models. We are modeling **reality** with a probability distribution (a highly abstract mathematical construct) that is controlled by a small number of parameters, and those few parameters will consequently determine some aspects of the model behavious. If these behavious match the attributes of the data that we are trying to model, then we are in luck. If not, we should look for other distributions that can better capture the attributes of the data, or maybe try a mixture of different distributions.
+
+The natural alternative here is the negative binomial model, which augments the Poisson distribution with a **concentration** parameter, $\phi$, as $\text{Neg-Binomial}(y; \lambda, \phi)$, so that we can separate the modeling of mean and variance. Using this parameterisation, the mean and variance are
 
 $$
 \begin{aligned}
@@ -632,26 +624,12 @@ $$
 \end{aligned}
 $$
 
-As we can see, the mean is the same as before, but now the variance is
-always bigger than the mean: this is how we meet the over-dispersion
-demand. As $\phi$ gets larger, the distribution becomes more
-concentrated, the term $\lambda^2 / \phi$ approaches zero, the variance
-of the negative-binomial approaches $\lambda$, and the Negative Binomial
-gets closer and closer to the Poisson.
+As we can see, the mean is the same as before, but now the variance is always bigger than the mean: this is how we meet the over-dispersion demand. As $\phi$ gets larger, the distribution becomes more concentrated, the term $\lambda^2 / \phi$ approaches zero, the variance of the negative-binomial approaches $\lambda$, and the Negative Binomial gets closer and closer to the Poisson.
 
-Approaching the problem from a different perspective, since our goal is
-to use a distribution to model the count data, with over-dispersion, the
-natural choice, if one Poisson distribution with constant $\lambda$ is
-too limited, is to use a family of Poissons with varying $\lambda$.
-Since $\lambda$ is a positive real number, we may consider putting a
-Gamma distribution on it, and this leads to the compound Gamma-Poisson
-distribution. It turns out that this is another parameterisation of the
-Negative Binomial distribution.
+Approaching the problem from a different perspective, since our goal is to use a distribution to model the count data, with over-dispersion, another natural approache, if one Poisson distribution with constant $\lambda$ is too limited, is to use a family of Poissons with varying $\lambda$.  And since $\lambda$ is a positive real number, we might consider using a Gamma distribution as its prior, and this leads to a compound Gamma-Poisson distribution. It turns out that this is just another parameterisation of the Negative Binomial distribution.
 
-The Gamma-Poisson distribution implementation in NumPyro is
-parameterised with a concentration parameter `c` and a rate
-parameter `r`, but have nothing to do with the concentration
-and rate parameters before. 
+The Gamma-Poisson distribution implementation in NumPyro is parameterised with a concentration parameter `c` and a rate parameter `r`, but awkwardly have nothing to do with the concentration and rate parameters before. 
+
 $$
 \begin{aligned}
 c  &= \phi \\
@@ -1444,10 +1422,8 @@ have observations for each building. So from now on we'll use the
 extended data set.
 
 ``` {python}
-import pyreadr
-result = pyreadr.read_r('data/pest_data_longer_stan_dat.RDS')
-pest_more = result[None]  
-pest_more.columns
+pest_more_link = 'data/more_pest.csv'
+pest_more = pd.read_csv(pest_more_link, index_col=0)
 ```
 
 ``` {python}
@@ -2460,15 +2436,6 @@ generally speaking, the monthly prediction looks good.
 
 ## Ending thoughts
 
-We won't go on expanding the model, because it looks like our model is
-already good enough. But good enough for what? Each model building
-practice should have the specific model, and the specific decisions to
-make about the model in mind. With observed social observations, we can
-never build a model good enough to capture all the aspects of the data,
-or how the data is really generated. All that we can do, when a problem
-is at hand, is to construct a model that solves or approximately solves
-the problems. Since we didn't touch on the decision making part in this
-post, we'll stop the model building here because the model outcome data
-seems to resemble the observed data enough.
+We won't go on expanding the model, because it looks like our model is already good enough. But good enough for what? Each model building practice should have the specific model, and the specific decisions to make about the model in mind. With observed social science data, we can never build a model good enough to capture all the aspects of the data, or how the data are actually generated. All that we can do, when a problem arises, is to construct a model that solves or approximately solves the problem. Since we didn't touch on the decision making part in this post, we'll stop the model building here because the model outcome data seems to resemble the observed data enough.
 
 Also the structure and substructure of the post might look quite repetitive, that's because we are aiming to enforce a certain procedure to build and validate our models.

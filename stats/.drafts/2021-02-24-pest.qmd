@@ -4,6 +4,8 @@ description: "A whirlwind tour on Bayesian model building, workflow, model criti
 date: 2021-02-24
 categories: ["numpyro", "Bayesian"]
 jupyter: jax
+execute: 
+  freeze: auto
 image: fig/pest.png
 draft: true
 ---
@@ -51,7 +53,7 @@ rng = random.PRNGKey(123)
 
 ## The data
 
-The data provided to us is in a file called `pest_data.RDS`.  Let's load the data and see what the structure is:
+The data provided to us is in a file called `pest.csv`.  Let's load the data and see what the structure is:
 
 ``` {python}
 pest_link = 'data/pest.csv'
@@ -379,7 +381,7 @@ middle range values, and again under-predict large values. How can we
 improve on this? The most obvious choice, is to add more predictors, so
 as to increase the variation in the data.
 
-### Bospoke diagnostics
+### Bespoke diagnostics
 
 Apart from looking at the overall distribution of the prediction, we can
 also look at specific statistics **of the overall distribution**. For
@@ -448,20 +450,19 @@ And the model now becomes
 
 $$
 \begin{aligned}
-\textrm{complaints}_{n} & \sim \textrm{Poisson}(\textrm{sq_foot}_b\lambda_{n}) \\
+\textrm{complaints}_{n} & \sim \textrm{Poisson}(\textrm{sq\_foot}_b\lambda_{n}) \\
 \lambda_{n} & = \exp{(\eta_{n} )} \\
-\eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live_in_super}_{b}
+\eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live\_in\_super}_{b}
 \end{aligned}
 $$
 
-The term $\text{sq_foot}$ is called an exposure term. If we log the
-term, we can put it in $\eta_{n}$:
+The term $\text{sq\_foot}$ is called an exposure term. If we log the term, we can put it in $\eta_{n}$:
 
 $$
 \begin{aligned}
 \textrm{complaints}_{n} & \sim \textrm{Poisson}(\lambda_{n}) \\
 \lambda_{n} & = \exp{(\eta_{n} )} \\
-\eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live_in_super}_{b} + \textrm{log_sq_foot}_b
+\eta_{n} &= \alpha + \beta  \textrm{traps}_{n}  + \beta_{super}  \textrm{live\_in\_super}_{b} + \textrm{log\_sq\_foot}_b
 \end{aligned}
 $$
 
@@ -665,7 +666,7 @@ $$
 \text{complaints}_{n} & \sim \text{Gamma-Poisson}(c, r_{n}) \\
 c  &= \phi \\
 r_{n}  &= \frac{\phi}{\lambda_n} \\
-\log \lambda_{n} &= \alpha + \beta  {\rm traps}_{n} + \beta_{\rm super}  {\rm super}_{b} + \text{log_sq_foot}_{b}
+\log \lambda_{n} &= \alpha + \beta  {\rm traps}_{n} + \beta_{\rm super}  {\rm super}_{b} + \text{log\_sq\_foot}_{b}
 \end{aligned}
 $$
 

@@ -3,7 +3,7 @@ title: "Modeling Amino Acid Sequences with HMM and Potts Models"
 description: "From multiple sequence alignments to contact map visualization"
 date: "2024-07-08"
 categories: ["Protein", "Bayesian"]
-jupyter: jax
+jupyter: torch
 image: fig/aa.png
 draft: true
 ---
@@ -289,107 +289,6 @@ Letting $\eta_i^k = \sum_{n \in \text{nbr}(i)} \mathbb{I}(x_n = k)$, we get:
 $$
 p(x_i = k | x_{-i}) = \frac{\exp(J \eta_i^k)}{\sum_{k'} \exp(J \eta_i^{k'})}.
 $$
-
-## Example implementation
-
-Here is an example Gibbs sampling implementation for the Potts model, with parallel neighborhood sampling. Code borrowed form [here](https://github.com/probml/pyprobml/blob/master/notebooks/book2/04/gibbs_demo_potts.ipynb). We are considering energy functions with only edge potentials, as in the previous section.
-
-``` {python}
-import jax
-import jax.numpy as jnp
-from jax import lax
-from jax import vmap
-from jax import random
-from jax import jit
-import numpy as np
-
-key = random.PRNGKey(12234)
-K = 20
-ix = 128
-iy = 128
-
-kernel = jnp.zeros((3, 3, 1, 1), dtype=jnp.float32)
-kernel += jnp.array([[0, 1, 0], [1, 0, 1], [0, 1, 0]])[:, :, jnp.newaxis, jnp.newaxis]
-
-dn = lax.conv_dimension_numbers(
-    (K, ix, iy, 1),  
-    kernel.shape,  
-    ("NHWC", "HWIO", "NHWC"),
-)  
-
-mask = jnp.indices((K, iy, ix, 1)).sum(axis=0) % 2
-def checkerboard_pattern1(x):
-    return mask[0, :, :, 0]
-
-
-def checkerboard_pattern2(x):
-    return mask[1, :, :, 0]
-
-
-def make_checkerboard_pattern1():
-    arr = vmap(checkerboard_pattern1, in_axes=0)(jnp.array(K * [1]))
-    return jnp.expand_dims(arr, -1)
-
-
-def make_checkerboard_pattern2():
-    arr = vmap(checkerboard_pattern2, in_axes=0)(jnp.array(K * [1]))
-    return jnp.expand_dims(arr, -1)
-
-def sampler(K, key, logits):
-    # Sample from the energy using gumbel trick
-    u = random.uniform(key, shape=(K, ix, iy, 1))
-    sample = jnp.argmax(logits - jnp.log(-jnp.log(u)), axis=0)
-    sample = jax.nn.one_hot(sample, K, axis=0)
-    return sample
-
-
-def state_mat_update(mask, inverse_mask, sample, state_mat):
-    # Update the state_mat using masking
-    masked_sample = mask * sample
-    masked_state_mat = inverse_mask * state_mat
-    state_mat = masked_state_mat + masked_sample
-    return state_mat
-
-
-def energy(state_mat, jvalue):
-    # Calculate energy
-    logits = lax.conv_general_dilated(state_mat, jvalue * kernel, (1, 1), "SAME", (1, 1), (1, 1), dn)
-    return logits
-
-
-def gibbs_sampler(key, jvalue, niter=1):
-    key, key2 = random.split(key)
-
-    X = random.randint(key, shape=(ix, iy), minval=0, maxval=K)
-    state_mat = jax.nn.one_hot(X, K, axis=0)[:, :, :, jnp.newaxis]
-
-    mask = make_checkerboard_pattern1()
-    inverse_mask = make_checkerboard_pattern2()
-
-    @jit
-    def state_update(key, state_mat, mask, inverse_mask):
-        logits = energy(state_mat, jvalue)
-        sample = sampler(K, key, logits)
-        state_mat = state_mat_update(mask, inverse_mask, sample, state_mat)
-        return state_mat
-
-    for iter in range(niter):
-        key, key2 = random.split(key2)
-        state_mat = state_update(key, state_mat, mask, inverse_mask)
-        mask, inverse_mask = inverse_mask, mask
-
-    return jnp.squeeze(jnp.argmax(state_mat, axis=0), axis=-1)
-
-Jvals = [1.6, 1.75, 1.8]
-dfig, axs = plt.subplots(1, len(Jvals), figsize=(8, 8))
-for t in range(len(Jvals)):
-    arr = gibbs_sampler(key, Jvals[t], niter=500)
-    axs[t].imshow(arr, cmap="Accent", interpolation="nearest")
-    axs[t].set_title(f"J = {Jvals[t]}")
-
-```
-
-We can see that J value greatly affects the sampling results.
 
 ## Remarks
 

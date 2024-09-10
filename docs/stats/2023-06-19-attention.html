@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.53">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="dcterms.date" content="2023-06-19">
+<meta name="description" content="All about matrix multiplications.">
+
+<title>Understanding the attention mechanism – Lottery of Babylonian Variations</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../styles.css">
+</head>
+
+<body class="nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">Lottery of Babylonian Variations</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../index.html"> 
+<span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../stats.html"> 
+<span class="menu-text">Stats</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../culture.html"> 
+<span class="menu-text">Culture</span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#token-interaction-as-matrix-multiplication" id="toc-token-interaction-as-matrix-multiplication" class="nav-link active" data-scroll-target="#token-interaction-as-matrix-multiplication">Token interaction as matrix multiplication</a></li>
+  <li><a href="#interaction-matrices-in-practice" id="toc-interaction-matrices-in-practice" class="nav-link" data-scroll-target="#interaction-matrices-in-practice">Interaction matrices in practice</a></li>
+  <li><a href="#parameterizing-query-key-and-value" id="toc-parameterizing-query-key-and-value" class="nav-link" data-scroll-target="#parameterizing-query-key-and-value">Parameterizing query, key, and value</a></li>
+  <li><a href="#masked-attention" id="toc-masked-attention" class="nav-link" data-scroll-target="#masked-attention">Masked attention</a></li>
+  <li><a href="#conclusion" id="toc-conclusion" class="nav-link" data-scroll-target="#conclusion">Conclusion</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Understanding the attention mechanism</h1>
+  <div class="quarto-categories">
+    <div class="quarto-category">transformer</div>
+    <div class="quarto-category">LLM</div>
+  </div>
+  </div>
+
+<div>
+  <div class="description">
+    All about matrix multiplications.
+  </div>
+</div>
+
+
+<div class="quarto-title-meta">
+
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">June 19, 2023</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This post explains how the attention mechanism in modern language models works, and how it is accomplished through matrix multiplication.</p>
+<section id="token-interaction-as-matrix-multiplication" class="level2">
+<h2 class="anchored" data-anchor-id="token-interaction-as-matrix-multiplication">Token interaction as matrix multiplication</h2>
+<p>In language modeling, a chuck of text can be tokenised and embedded into a data matrix. In the following <code>(2, 3)</code> data matrix, each row represent the embedding of one token</p>
+<p><span class="math display">\[
+\mathbf{X} = \begin{pmatrix}
+x_{11} &amp; x_{12} &amp; x_{13} \\
+x_{21} &amp; x_{22} &amp; x_{23}
+\end{pmatrix}
+\]</span></p>
+<p>However, we know that to model the human natural language, it’s not enough to have each token independently embedded; the tokens are also semantically related to each other. For example in the sentence “the art of writting is the art of discovering what you believe”, the meaning of the sentence is not only in the individual words, but also in how they are methodically arranged together. With the words and sentences tokenized as the above data matrix, interactions can easily be realized by left and right multiplying the data matrix with interaction matrices.</p>
+<p>For example left multiplication it with an <code>(2, 2)</code> interaction matrix <span class="math display">\[
+\mathbf{L} = \begin{pmatrix}
+l_{11} &amp; l_{12} \\
+l_{21} &amp; l_{22}
+\end{pmatrix}
+\]</span></p>
+<p>will give us</p>
+<p><span class="math display">\[
+\mathbf{L} \mathbf{X} = \begin{pmatrix}
+l_{11} &amp; l_{12} \\
+l_{21} &amp; l_{22}
+\end{pmatrix}
+\begin{pmatrix}
+x_{11} &amp; x_{12} &amp; x_{13} \\
+x_{21} &amp; x_{22} &amp; x_{23}
+\end{pmatrix}
+= \begin{pmatrix}
+l_{11}x_{11} + l_{12}x_{21} &amp; l_{11}x_{12} + l_{12}x_{22} &amp; l_{11}x_{13} + l_{12}x_{23} \\
+l_{21}x_{11} + l_{22}x_{21} &amp; l_{21}x_{12} + l_{22}x_{22} &amp; l_{21}x_{13} + l_{22}x_{23}
+\end{pmatrix},
+\]</span></p>
+<p>which is again a <code>(2, 3)</code> matrix, the same as the original data matrix. We notice that each entry in the new data matrix is the weighted sum of the corresponding entries in the original matrix, frome different rows, but from the same column. In this way we achieved the goal of <strong>interacting the different tokens with each other</strong>. However we should also note that there is no interaction between the different columns of the original matrix.</p>
+<p>Similarly, right multiplication it with an <code>(3, 2)</code> interaction matrix</p>
+<p><span class="math display">\[
+\mathbf{R} = \begin{pmatrix}
+r_{11} &amp; r_{12} \\
+r_{21} &amp; r_{22} \\
+r_{31} &amp; r_{32}
+\end{pmatrix}
+\]</span></p>
+<p>will give us</p>
+<p><span class="math display">\[
+\mathbf{X} \mathbf{R} = \begin{pmatrix}
+x_{11} &amp; x_{12} &amp; x_{13} \\
+x_{21} &amp; x_{22} &amp; x_{23}
+\end{pmatrix}
+\begin{pmatrix}
+r_{11} &amp; r_{12} \\
+r_{21} &amp; r_{22} \\
+r_{31} &amp; r_{32}
+\end{pmatrix}
+= \begin{pmatrix}
+x_{11}r_{11} + x_{12}r_{21} + x_{13}r_{31} &amp; x_{11}r_{12} + x_{12}r_{22} + x_{13}r_{32} \\
+x_{21}r_{11} + x_{22}r_{21} + x_{23}r_{31} &amp; x_{21}r_{12} + x_{22}r_{22} + x_{23}r_{32}
+\end{pmatrix},
+\]</span></p>
+<p>which is a <code>(2, 2)</code> matrix. It has the same number of rows as the original data matrix, but the number of columns is determined by the interaction matrix. We notice that each entry in the new data matrix is the weighted sum of the corresponding entries in the original matrix, from different columns, but from the same row. And there is no interaction between the different rows of the original matrix. In this way we have updated the embedding of each token, but without interacting the tokens with each other.</p>
+<p>Combining left and right multiplication, we can thus both make the tokens interact with each other, and update the embedding of each token. In transformer language models, it’s the repeated application of this operation that allows the model to “understand” the context of the sentence, and represent it in the most meaningful way. This is the backbone of all the large language models.</p>
+<p>The final interaction mechanism will look like this: <span class="math display">\[
+\mathbf{Y} = \mathbf{L} \mathbf{X} \mathbf{R}.
+\]</span></p>
+</section>
+<section id="interaction-matrices-in-practice" class="level2">
+<h2 class="anchored" data-anchor-id="interaction-matrices-in-practice">Interaction matrices in practice</h2>
+<p>To see this in action let’s first define a data matrix.</p>
+<div id="dc05d1d3" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">0</span>)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>T, E <span class="op">=</span> <span class="dv">4</span>, <span class="dv">5</span>  <span class="co"># sequence length, embedding dimension</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> np.random.randn(T, E)  <span class="co"># input tensor</span></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(x)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[ 1.76405235  0.40015721  0.97873798  2.2408932   1.86755799]
+ [-0.97727788  0.95008842 -0.15135721 -0.10321885  0.4105985 ]
+ [ 0.14404357  1.45427351  0.76103773  0.12167502  0.44386323]
+ [ 0.33367433  1.49407907 -0.20515826  0.3130677  -0.85409574]]</code></pre>
+</div>
+</div>
+<p>Here each row is an embedding of one token as a 5 dimensional vector (E=5), and 4 tokens (T=4) are stacked together, from top to bottom. This way we end up with a <code>(4, 5)</code> data matrix.</p>
+<p>Next, let’s start with left multiplication interactions. A diagonal interaction matrix, which means that each token only interacts with itself (i.e.&nbsp;no interaction at all), is the simplest of all the interaction matrices.</p>
+<div id="0d774837" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.eye(T)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(L, L <span class="op">@</span> x, sep<span class="op">=</span><span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1. 0. 0. 0.]
+ [0. 1. 0. 0.]
+ [0. 0. 1. 0.]
+ [0. 0. 0. 1.]]
+[[ 1.76405235  0.40015721  0.97873798  2.2408932   1.86755799]
+ [-0.97727788  0.95008842 -0.15135721 -0.10321885  0.4105985 ]
+ [ 0.14404357  1.45427351  0.76103773  0.12167502  0.44386323]
+ [ 0.33367433  1.49407907 -0.20515826  0.3130677  -0.85409574]]</code></pre>
+</div>
+</div>
+<p>As we expected, the embedding matrix is the same as the original x. Next we can make all the tokens equally affecting all others by setting the interaction matrix to be of all ones.</p>
+<div id="c13676e1" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.ones((T, T)) </span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(L, L <span class="op">@</span> x, sep<span class="op">=</span><span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1. 1. 1. 1.]
+ [1. 1. 1. 1.]
+ [1. 1. 1. 1.]
+ [1. 1. 1. 1.]]
+[[1.26449236 4.29859821 1.38326024 2.57241707 1.86792399]
+ [1.26449236 4.29859821 1.38326024 2.57241707 1.86792399]
+ [1.26449236 4.29859821 1.38326024 2.57241707 1.86792399]
+ [1.26449236 4.29859821 1.38326024 2.57241707 1.86792399]]</code></pre>
+</div>
+</div>
+<p>Now all the rows of the embedding matrix are the same, since we effectively summed up all the rows in the original matrix to create the new ones. A slightly more interesting interaction matrix is the lower triangular matrix:</p>
+<div id="f51e3782" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.tril(np.ones((T, T))) </span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(L, L <span class="op">@</span> x, sep<span class="op">=</span><span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1. 0. 0. 0.]
+ [1. 1. 0. 0.]
+ [1. 1. 1. 0.]
+ [1. 1. 1. 1.]]
+[[1.76405235 0.40015721 0.97873798 2.2408932  1.86755799]
+ [0.78677447 1.35024563 0.82738078 2.13767435 2.27815649]
+ [0.93081804 2.80451913 1.5884185  2.25934936 2.72201972]
+ [1.26449236 4.29859821 1.38326024 2.57241707 1.86792399]]</code></pre>
+</div>
+</div>
+<p>After left multiplying L, the first row (embeddings for the first word) is left as is, the new second row is the sum of the first two rows, the new third row is the sum of the first three, etc. This is a one way interaction mechanism where the tokens come before affect the tokens that come after, but not the other way around.</p>
+<p>Of course the interaction matrix can be any matrix, not just the ones we’ve seen above.</p>
+<div id="3c842cce" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.random.randn(T, T)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(L, L <span class="op">@</span> x, sep<span class="op">=</span><span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[-2.55298982  0.6536186   0.8644362  -0.74216502]
+ [ 2.26975462 -1.45436567  0.04575852 -0.18718385]
+ [ 1.53277921  1.46935877  0.15494743  0.37816252]
+ [-0.88778575 -1.98079647 -0.34791215  0.15634897]]
+[[-5.26549961 -0.25232838 -1.78750815 -5.91561089 -3.48191029]
+ [ 5.36941815 -0.68663938  2.51485007  5.18336211  3.82192147]
+ [ 1.41643325  2.79971404  1.31812887  3.42037269  3.21165905]
+ [ 0.37174317 -2.50954735 -0.86595236 -1.77836191 -2.75926583]]</code></pre>
+</div>
+</div>
+<p>We can no longer identify the relationship between the tokens since, as the name implied, we are now randomly mixing the tokens up.</p>
+<p>One extra thing to note is that it’s generally not a good idea to simply summing vectors up: when the vectors get extremely long, as is often the case in modern deep learning (to accurately capture the meaning of a word we need some context, the longer the better), the sum of vectors can often explode, which affects the stability and efficiency of the model training. So we’ll use weights the instead, and make sure each row of L sum to one. Things are easy if all the values are positive, say 1, 2, 2, 3, then the sum is 8, and the weights are simply 1/8, 2/8, 2/8, and 3/8. But, it’s not always easy to get meaningful weights, if the entries in L are not always positive. What if the values are 1, -2, 2, 3? And they may even sum to zero, like -1, 2, 2, -3, leaving us with a devided by zero error. The solution we use is simple: first exponentiate all the entries to make sure they are all positive, then compute the weights using these positive numbers.</p>
+<div id="860faf12" class="cell" data-execution_count="6">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.random.randn(T, T)</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.exp(L)</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> L <span class="op">/</span> L.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(L, L <span class="op">@</span> x, sep<span class="op">=</span><span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[0.41896738 0.40743534 0.08311088 0.09048641]
+ [0.04488369 0.03095732 0.02325121 0.90090777]
+ [0.16201575 0.17403762 0.07705739 0.58688924]
+ [0.0689366  0.27987549 0.14140365 0.50978426]]
+[[ 0.38306743  0.8108122   0.39307749  0.93524704  0.90934403]
+ [ 0.35288226  1.4272138  -0.12788986  0.3822584  -0.6626072 ]
+ [ 0.32265065  1.21910435  0.07046752  0.53820807 -0.09302326]
+ [ 0.03856185  1.26078951  0.02813675  0.30239341 -0.12898112]]</code></pre>
+</div>
+</div>
+<p>Similarly we can create a right interaction matrix R to make the columns interact, and thus update the embedding of each token. We can of course apply the same softmax treatment to each column of R so that each column sums to one, but for some reason (which is still beyond my knowledge) this has never been done in practice. So here we’ll stick to the common wisdom. When applying the right interaction matrix, we need to decide on the new embedding dimension <code>H1</code>. (It’s named <code>H1</code> because we are going to need another <code>H2</code>, as we’ll see shortly.)</p>
+<div id="a566276f" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>H1 <span class="op">=</span> <span class="dv">6</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>R <span class="op">=</span> np.random.randn(E, H1)</span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(R, x <span class="op">@</span> R, sep<span class="op">=</span><span class="st">"</span><span class="ch">\n</span><span class="st">"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[-0.51080514 -1.18063218 -0.02818223  0.42833187  0.06651722  0.3024719 ]
+ [-0.63432209 -0.36274117 -0.67246045 -0.35955316 -0.81314628 -1.7262826 ]
+ [ 0.17742614 -0.40178094 -1.63019835  0.46278226 -0.90729836  0.0519454 ]
+ [ 0.72909056  0.12898291  1.13940068 -1.23482582  0.40234164 -0.68481009]
+ [-0.87079715 -0.57884966 -0.31155253  0.05616534 -1.16514984  0.90082649]]
+[[-0.97371195 -3.41308712  0.05709096 -1.59755613 -2.3704341   0.04139219]
+ [-0.56312213  0.61899371 -0.61014338 -0.67973328 -1.22017855 -1.50301919]
+ [-1.15883076 -1.24459388 -2.22229344 -0.23431315 -2.33165625 -2.11086604]
+ [-0.18257152 -0.31870854 -0.05685886 -0.92377577  0.11453969 -3.47271662]]</code></pre>
+</div>
+</div>
+<p>We end up with a new embedding matrix of dimension <code>(T, H1)</code>.</p>
+</section>
+<section id="parameterizing-query-key-and-value" class="level2">
+<h2 class="anchored" data-anchor-id="parameterizing-query-key-and-value">Parameterizing query, key, and value</h2>
+<p>We have seen how the left and right interaction matrices can be used to update the token embedding, now it’s time to determine how to populate them. Since we are talking about neural networks, we can just treat L and R as parameters of the network, and learn them from the data. However, as things stand now, once learned, the same parameter matrices will be applied to all sentences, which effectively means that all the sentences will be forced to interact in the same way, which is clearly not what we want. On the contrary the interaction matrices should be bespoke for each sentence; each sentence should has its own way of interaction between the tokens. The natural way to achieve this is to make the interaction matrices not only have learnable parameters, but are also functions of the input tokens.</p>
+<p>We finally settle on the following interaction mechanism: <span class="math display">\[
+\begin{align*}
+\mathbf{Y} &amp;= \mathbf{L} \mathbf{X} \mathbf{R} \\
+\mathbf{L} &amp;= \text{softmax} \left( \mathbf{Q} \mathbf{K}^\top \right) \\
+\mathbf{Q} &amp;= \mathbf{X} \mathbf{W}^Q \\
+\mathbf{K} &amp;= \mathbf{X} \mathbf{W}^K \\
+\mathbf{V} &amp;= \mathbf{X} \mathbf{W}^V = \mathbf{X} \mathbf{R}
+\end{align*}
+\]</span></p>
+<p>The left interaction matrix L is the product of two matrices, the query matrix Q and the key matrix K, each in turn is the product of two matrices, the data matrix and a parameter matrix (Ignore softmax, which is for turning random matrices into weights). Since Q and K are calculated exactly the same way, their difference in naming is only an conventional. Note that since Q and K (and V) are all calculated by right multiplying a parameter matrix, they are all updated embeddings for each token, with no interactions between them, as we’ve discussed earlier. However by multiplying them together</p>
+<p><span class="math display">\[
+\mathbf{Q} \mathbf{K}^\top = \left( \mathbf{X} \mathbf{W}^Q \right) \left( \mathbf{X} \mathbf{W}^K \right)^\top = \mathbf{X} \mathbf{W}^Q {\mathbf{W}^K}^\top \mathbf{X}^\top,
+\]</span></p>
+<p>We see that the weight matrices are both appearing on the left (for the second X) and right (for the first X), the resulting matrix thus captures all possible information flows among the tokens. To make sure the query and key have compatible dimensions, their parameter matrices should have the same dimensions.</p>
+<p>The value matrix <span class="math inline">\(\mathbf{V}\)</span> is just a rewrite of the right interaction <span class="math inline">\(\mathbf{X} \mathbf{R}\)</span>.</p>
+<p>We can now implement the whole process.</p>
+<div id="9cabf8ec" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>T, E, H1, H2 <span class="op">=</span> <span class="dv">4</span>, <span class="dv">5</span>, <span class="dv">6</span>, <span class="dv">7</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> np.random.randn(T, E)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>W_Q <span class="op">=</span> np.random.randn(E, H2)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>W_K <span class="op">=</span> np.random.randn(E, H2)</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>W_V <span class="op">=</span> np.random.randn(E, H1)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>Q <span class="op">=</span> X <span class="op">@</span> W_Q</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>K <span class="op">=</span> X <span class="op">@</span> W_K</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>V <span class="op">=</span> X <span class="op">@</span> W_V</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.exp(Q <span class="op">@</span> K.T)</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> L <span class="op">/</span> L.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Q shape:"</span>, Q.shape)</span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"K shape:"</span>, K.shape)</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"V shape:"</span>, V.shape)</span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"L shape:"</span>, L.shape)</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"L @ V shape:"</span>, (L <span class="op">@</span> V).shape)</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(L, V, L <span class="op">@</span> V, sep<span class="op">=</span><span class="st">'</span><span class="ch">\n</span><span class="st">'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Q shape: (4, 7)
+K shape: (4, 7)
+V shape: (4, 6)
+L shape: (4, 4)
+L @ V shape: (4, 6)
+[[9.99996706e-01 3.28680000e-06 7.50610498e-09 2.85006607e-14]
+ [9.78226751e-01 1.28560219e-03 2.02652246e-02 2.22422213e-04]
+ [3.07277486e-05 1.29535875e-01 8.07295984e-01 6.31374132e-02]
+ [2.82603173e-01 6.82619752e-03 7.10526096e-01 4.45339485e-05]]
+[[ 0.48796236 -1.23724751  0.89411441  1.86818403  0.0708713   4.78357836]
+ [ 2.45759555 -0.6918528   2.06088201  3.50938285 -0.60840164  3.90835192]
+ [-0.94901715 -0.49210324 -0.95973845 -1.99359209 -0.69361156 -1.88892325]
+ [-1.75111978 -2.41142737 -5.32539656 -2.93730234 -0.33078805 -0.89377003]]
+[[ 0.48796882 -1.23724571  0.89411823  1.86818939  0.07086906  4.78357544]
+ [ 0.46087579 -1.221707    0.85666231  1.79096535  0.05441627  4.64597066]
+ [-0.55833713 -0.63918203 -0.84403913 -1.34022418 -0.65964259 -1.07493171]
+ [-0.5197037  -0.70413238 -0.41540882 -0.86471954 -0.47696846  0.03636454]]</code></pre>
+</div>
+</div>
+<p>Note that we have used different embedding dimensions for the data matrix(E=5), right interaction matrix(H1=6), and the query/key embedding for the left interaction matrix(H2=7). In practice, since transformer models usually have multiple attention layers stacked together, and each attention layer also has an extra residual connection, the embedding dimensions for the data matrix and the right interaction matrix are usually the same (E=H1). Besides, the query/key embedding for the left interaction matrix is usually also kept the same as the embedding dimension for the data matrix (E=H2).</p>
+<div id="e45cbaa7" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>T, E <span class="op">=</span> <span class="dv">4</span>, <span class="dv">5</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> np.random.randn(T, E)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>W_Q <span class="op">=</span> np.random.randn(E, E)</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>W_K <span class="op">=</span> np.random.randn(E, E)</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>W_V <span class="op">=</span> np.random.randn(E, E)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>Q <span class="op">=</span> X <span class="op">@</span> W_Q</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>K <span class="op">=</span> X <span class="op">@</span> W_K</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>V <span class="op">=</span> X <span class="op">@</span> W_V</span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.exp(Q <span class="op">@</span> K.T)</span>
+<span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> L <span class="op">/</span> L.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-16"><a href="#cb17-16" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"Q shape:"</span>, Q.shape)</span>
+<span id="cb17-17"><a href="#cb17-17" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"K shape:"</span>, K.shape)</span>
+<span id="cb17-18"><a href="#cb17-18" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"V shape:"</span>, V.shape)</span>
+<span id="cb17-19"><a href="#cb17-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"L shape:"</span>, L.shape)</span>
+<span id="cb17-20"><a href="#cb17-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"L @ V shape:"</span>, (L <span class="op">@</span> V).shape)</span>
+<span id="cb17-21"><a href="#cb17-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(L, V, L <span class="op">@</span> V, sep<span class="op">=</span><span class="st">'</span><span class="ch">\n</span><span class="st">'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Q shape: (4, 5)
+K shape: (4, 5)
+V shape: (4, 5)
+L shape: (4, 4)
+L @ V shape: (4, 5)
+[[4.17764387e-09 2.57135620e-06 9.99997419e-01 5.39037660e-09]
+ [8.83647632e-01 3.61057169e-02 1.10946675e-05 8.02355563e-02]
+ [3.27298619e-01 1.62202688e-02 4.33976229e-01 2.22504884e-01]
+ [8.16727896e-01 2.61363556e-04 1.81996886e-01 1.01385435e-03]]
+[[-0.38265795 -1.0078002  -1.28306344  0.87532503  1.31775286]
+ [ 0.42510411 -0.71553386  2.17308255 -0.01319503 -0.38305383]
+ [ 1.70990215 -0.46195207 -2.27786996 -0.59268283  1.09518226]
+ [-1.44638454 -4.79764402  3.20740801 -0.21663068  2.96228223]]
+[[ 1.70989882 -0.46195275 -2.27785848 -0.59268133  1.09517847]
+ [-0.4388186  -1.30132189 -0.79799237  0.75561442  1.38829128]
+ [ 0.30188115 -1.60943321 -0.65957438 -0.019133    1.55949079]
+ [-0.00268587 -0.9122235  -1.45865913  0.60681286  1.27846849]]</code></pre>
+</div>
+</div>
+<p>And this is usually what attention in language models looks like.</p>
+</section>
+<section id="masked-attention" class="level2">
+<h2 class="anchored" data-anchor-id="masked-attention">Masked attention</h2>
+<p>Modern Large language models (basically all LLMs from GPT2 on, the so called “decoder only transformers”) are mostly next-word-prediction machines. That is, given a word, we want the model to predict what the next word should be, but we are not interested in what has come before. The information only flows one way, like the rivers to the sea.</p>
+<p>We have already seen how such one-way forward interaction can be achieved: by making L a lower triangle matrix. We’ll create a mask matrix the same shape as L, and after applying the mask, the lower left part of L will be intact, while the upper right part above the diagonal will be set to negative infinity. This way, after exponentiation, the upper right part of the left interaction matrix will be set to zero, which effectively forbids the later tokens affecting the earlier ones.</p>
+<div id="7753a78d" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>T, E <span class="op">=</span> <span class="dv">4</span>, <span class="dv">5</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> np.random.randn(T, E)</span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>W_Q <span class="op">=</span> np.random.randn(E, E)</span>
+<span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a>W_K <span class="op">=</span> np.random.randn(E, E)</span>
+<span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>W_V <span class="op">=</span> np.random.randn(E, E)</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>Q <span class="op">=</span> X <span class="op">@</span> W_Q</span>
+<span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>K <span class="op">=</span> X <span class="op">@</span> W_K</span>
+<span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a>V <span class="op">=</span> X <span class="op">@</span> W_V</span>
+<span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> Q <span class="op">@</span> K.T</span>
+<span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>mask <span class="op">=</span> np.tril(np.ones(L.shape), k<span class="op">=</span><span class="dv">0</span>)  <span class="co"># Create a lower triangular mask</span></span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.where(mask <span class="op">==</span> <span class="dv">1</span>, L, <span class="op">-</span>np.inf)    <span class="co"># Apply the mask to L, setting upper right entries to -inf</span></span>
+<span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> np.exp(L)</span>
+<span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>L <span class="op">=</span> L <span class="op">/</span> L.<span class="bu">sum</span>(axis<span class="op">=</span><span class="dv">1</span>, keepdims<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-19"><a href="#cb19-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(L, V, L <span class="op">@</span> V, sep<span class="op">=</span><span class="st">'</span><span class="ch">\n</span><span class="st">'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[[1.00000000e+00 0.00000000e+00 0.00000000e+00 0.00000000e+00]
+ [8.73730868e-01 1.26269132e-01 0.00000000e+00 0.00000000e+00]
+ [8.75161032e-02 4.22552421e-01 4.89931476e-01 0.00000000e+00]
+ [2.44179030e-04 2.07785297e-03 1.42193742e-02 9.83458594e-01]]
+[[-0.64112576  3.93575956 -0.12979446  2.44301203  0.22577084]
+ [ 1.43055231 -1.6645132   0.44924118 -1.49425456  0.68901062]
+ [ 0.0815931   2.13348808  1.5848282   1.0688065   1.61374919]
+ [ 0.28371997  0.39761655  0.89286344 -0.20351501  0.41637134]]
+[[-0.64112576  3.93575956 -0.12979446  2.44301203  0.22577084]
+ [-0.37953677  3.22861798 -0.05668014  1.94585679  0.28426373]
+ [ 0.58834954  0.68636122  0.95492606  0.10604396  1.10152821]
+ [ 0.28300297  0.4188787   0.90153125 -0.18745914  0.43391727]]</code></pre>
+</div>
+</div>
+<p>We can see that L is in fact a lower triangle matrix.</p>
+</section>
+<section id="conclusion" class="level2">
+<h2 class="anchored" data-anchor-id="conclusion">Conclusion</h2>
+<p>And voilà, we now have gone through the single most import component is modern large language models.</p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

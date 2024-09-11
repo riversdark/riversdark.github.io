@@ -1,5 +1,5 @@
 ---
-title: "A Welcome is in Order."
+title: "A Welcome is in Order..."
 ---
 
 Kind of you to drop by! This is the personal website of Olivier Ma.

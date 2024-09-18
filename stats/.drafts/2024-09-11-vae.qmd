@@ -1,0 +1,637 @@
+---
+title: variational autoencoder
+jupyter: jax
+---
+
+convert to torch.
+
+It also uses pre-trained checkpoints, to make the demo faster.
+
+## Setup
+
+```{python}
+from functools import partial
+from itertools import islice
+import subprocess
+from typing import Sequence, Tuple
+
+import flax
+import flax.linen as nn
+from flax.training import checkpoints, train_state
+import jax
+import jax.numpy as jnp
+import matplotlib.pyplot as plt
+import numpy as np
+import optax
+import tensorflow as tf
+
+import torch
+from torch.utils.data import DataLoader
+import torchvision.transforms as T
+from torch import Generator
+from torchvision.datasets import MNIST, CelebA
+
+tf.config.set_visible_devices([], "GPU")  # prevent TensorFlow from using the GPU
+```
+
+## Model
+
+The encoder has convolutional layers followed by a fully connected layer.
+The covolutional layers are shared between mean and variance, while each has its own fully connected layer.
+
+```{python}
+class Encoder(nn.Module):
+    latent_dim: int
+    hidden_channels: Sequence[int]
+
+    @nn.compact
+    def __call__(self, X, training):
+        for channel in self.hidden_channels:
+            X = nn.Conv(channel, (3, 3), strides=2, padding=1)(X)
+            X = nn.BatchNorm(use_running_average=not training)(X)
+            X = jax.nn.relu(X)
+
+        X = X.reshape((-1, np.prod(X.shape[-3:])))
+        mu = nn.Dense(self.latent_dim)(X)
+        logvar = nn.Dense(self.latent_dim)(X)
+
+        return mu, logvar
+
+```
+
+The decoder reverses the effect of the encoder.
+
+```{python}
+
+class Decoder(nn.Module):
+    output_dim: Tuple[int, int, int]
+    hidden_channels: Sequence[int]
+
+    @nn.compact
+    def __call__(self, X, training):
+        H, W, C = self.output_dim
+
+        # TODO: relax this restriction
+        factor = 2 ** len(self.hidden_channels)
+        assert (
+            H % factor == W % factor == 0
+        ), f"output_dim must be a multiple of {factor}"
+        H, W = H // factor, W // factor
+
+        X = nn.Dense(H * W * self.hidden_channels[-1])(X)
+        X = jax.nn.relu(X)
+        X = X.reshape((-1, H, W, self.hidden_channels[-1]))
+
+        for hidden_channel in reversed(self.hidden_channels[:-1]):
+            X = nn.ConvTranspose(
+                hidden_channel, (3, 3), strides=(2, 2), padding=((1, 2), (1, 2))
+            )(X)
+            X = nn.BatchNorm(use_running_average=not training)(X)
+            X = jax.nn.relu(X)
+
+        X = nn.ConvTranspose(C, (3, 3), strides=(2, 2), padding=((1, 2), (1, 2)))(X)
+        X = jax.nn.sigmoid(X)
+
+        return X
+
+```
+
+And apply the reparameterization trick.
+
+```{python}
+
+def reparameterize(key, mean, logvar):
+    std = jnp.exp(0.5 * logvar)
+    eps = jax.random.normal(key, logvar.shape)
+    return mean + eps * std
+
+```
+
+The full VAE model.
+
+```{python}
+
+class VAE(nn.Module):
+    variational: bool
+    latent_dim: int
+    output_dim: Tuple[int, int, int]
+    hidden_channels: Sequence[int]
+
+    def setup(self):
+        self.encoder = Encoder(self.latent_dim, self.hidden_channels)
+        self.decoder = Decoder(self.output_dim, self.hidden_channels)
+
+    def __call__(self, key, X, training):
+        mean, logvar = self.encoder(X, training)
+        if self.variational:
+            Z = reparameterize(key, mean, logvar)
+        else:
+            Z = mean
+
+        recon = self.decoder(Z, training)
+        return recon, mean, logvar
+
+    def decode(self, Z, training):
+        return self.decoder(Z, training)
+```
+
+Next we create functionalities to track all the necessary components for training the VAE.
+
+1. Initialize the VAE model using a dummy input:
+   - This step creates the initial parameters and batch statistics
+   - It also performs a shape check to ensure the output matches the input
+2. Set up an Adam optimizer with the given learning rate.
+3. Wrap the model, parameters, optimizer, and batch statistics into a `TrainState` object.
+
+```{python}
+
+class TrainState(train_state.TrainState):
+    batch_stats: flax.core.FrozenDict[str, jnp.ndarray]
+    beta: float
+
+
+def create_train_state(
+    key, variational, beta, latent_dim, hidden_channels, learning_rate, specimen
+):
+    vae = VAE(variational, latent_dim, specimen.shape, hidden_channels)
+    key_dummy = jax.random.PRNGKey(42)
+    (recon, _, _), variables = vae.init_with_output(key, key_dummy, specimen, True)
+    assert (
+        recon.shape[-3:] == specimen.shape
+    ), f"{recon.shape} = recon.shape != specimen.shape = {specimen.shape}"
+    tx = optax.adam(learning_rate)
+    state = TrainState.create(
+        apply_fn=vae.apply,
+        params=variables["params"],
+        tx=tx,
+        batch_stats=variables["batch_stats"],
+        beta=beta,
+    )
+
+    return state
+```
+
+The KL divergence between the Gaussian encoder and the standard Gaussian prior.
+
+```{python}
+@jax.vmap
+def kl_divergence(mean, logvar):
+    return -0.5 * jnp.sum(1 + logvar - jnp.square(mean) - jnp.exp(logvar))
+
+```
+
+The training step for the Variational Autoencoder (VAE) is defined as follows:
+
+1. Define the overall loss function `loss_fn` of the VAE model.
+   a. Applies the VAE to the input image, getting the reconstruction, mean, and log variance.
+   b. Computes the reconstruction loss (mean squared error between input and reconstruction).
+   c. Computes the KL divergence between the encoder distribution and the prior.
+   d. Combines these losses, weighting the KL divergence by the beta parameter.
+
+2. We use `jax.value_and_grad` to get both the loss value and its gradient with respect to the model parameters.
+
+3. We update the model parameters using the computed gradients and the optimizer defined in the train state.
+
+4. We update the batch statistics for batch normalization layers.
+
+This step is wrapped in a `jax.jit` decorator for faster execution on accelerators.
+
+```{python}
+
+@jax.jit
+def train_step(state, key, image):
+    @partial(jax.value_and_grad, has_aux=True)
+    def loss_fn(params):
+        variables = {"params": params, "batch_stats": state.batch_stats}
+        (recon, mean, logvar), new_model_state = state.apply_fn(
+            variables, key, image, True, mutable=["batch_stats"]
+        )
+        loss = jnp.sum((recon - image) ** 2) + state.beta * jnp.sum(
+            kl_divergence(mean, logvar)
+        )
+        return loss.sum(), new_model_state
+
+    (loss, new_model_state), grads = loss_fn(state.params)
+
+    state = state.apply_gradients(
+        grads=grads, batch_stats=new_model_state["batch_stats"]
+    )
+
+    return state, loss
+```
+
+```{python}
+@jax.jit
+def test_step(state, key, image):
+    variables = {"params": state.params, "batch_stats": state.batch_stats}
+    recon, mean, logvar = state.apply_fn(variables, key, image, False)
+
+    return recon, mean, logvar
+```
+
+```{python}
+@jax.jit
+def decode(state, Z):
+    variables = {"params": state.params, "batch_stats": state.batch_stats}
+    decoded = state.apply_fn(variables, Z, False, method=VAE.decode)
+
+    return decoded
+
+```
+
+## Download dataset
+
+```{python}
+transform = T.Compose([T.RandomHorizontalFlip(), T.CenterCrop((128, 128)), T.Resize((64, 64)), np.array])
+
+celeba_train = CelebA("data/vae/celeba", split="train", download=True, transform=transform)
+celeba_test = CelebA("data/vae/celeba", split="test", download=True, transform=transform)
+```
+
+## Hyperparameters
+
+```{python}
+import os
+ckpt_dir = os.path.abspath("data/vae/ckpts")
+
+epochs = 5
+batch_size = 256
+latent_dim = 256
+hidden_channels = (32, 64, 128, 256, 512)
+lr = 1e-3
+specimen = jnp.empty((64, 64, 3))
+
+configs = {
+    "ae": (False, 0),
+    "vae_0.1": (True, 0.1),
+    "vae_0.5": (True, 0.5),
+    "vae_1.0": (True, 1),
+}
+```
+
+## Prepare checkpoints
+
+Either by downloading or training
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/'}
+def train(name, variational, beta, loader_train, target_epoch):
+    print(f"=== Training {name} ===")
+    key = jax.random.PRNGKey(42)
+    state = create_train_state(key, variational, beta, latent_dim, hidden_channels, lr, specimen)
+
+    for epoch in range(target_epoch):
+        loss_train = 0
+        for X, _ in loader_train:
+            image = jnp.array(X).reshape((-1, *specimen.shape)) / 255.0
+            key, key_Z = jax.random.split(key)
+            state, loss = train_step(state, key_Z, image)
+            loss_train += loss
+
+        print(f"Epoch {epoch + 1}: train loss {loss_train}")
+
+        # Keep the model with lowest loss_train
+        checkpoints.save_checkpoint(
+            ckpt_dir, state, epoch + 1, prefix=f"{name}_celeba_", keep=target_epoch, overwrite=True
+        )
+
+
+def prepare_checkpoints(target_epoch, download=True):
+    # Download pre-trained checkpoints by default to save time. At the time
+    # of writing, we have prepared the checkpoints for the first 5 epochs,
+    # so target_epoch must be less than or equal to 5.
+    #
+    # NOTE: You may want to deletes all existing checkpoints before downloading.
+    if download:
+        # print("Deleting existing checkpoints")
+        # subprocess.run(["rm", "-rf", ckpt_dir])
+        # subprocess.run(["mkdir", ckpt_dir])
+        for name in configs:
+            url = f"https://internal-use.adroits.xyz/ckpts/celeba_vae_ae_comparison/{name}_celeba_{target_epoch}"
+            print("Downloading", url)
+            subprocess.run(["wget", "-q", url, "-P", ckpt_dir], check=True)
+        return
+
+    # Alternatively, you can train the model from scratch if you want to tune
+    # the hyperparameters. It takes ~4 minutes per epoch per model on a GPU
+    # runtime with a Tesla P100 GPU.
+    loader_train = DataLoader(celeba_train, batch_size, shuffle=True, generator=torch.Generator().manual_seed(42))
+
+    for name, (variational, beta) in configs.items():
+        train(name, variational, beta, loader_train, target_epoch)
+
+
+prepare_checkpoints(epochs, download=False)
+```
+
+## Load checkpoints
+
+```{python}
+states = {}
+
+for name, (variational, beta) in configs.items():
+    key = jax.random.PRNGKey(42)
+    state = create_train_state(key, variational, beta, latent_dim, hidden_channels, lr, specimen)
+    restored = checkpoints.restore_checkpoint(ckpt_dir, state, prefix=f"{name}_celeba_")
+    if state is restored:
+        raise FileNotFoundError(f"Cannot load checkpoint from {ckpt_dir}/{name}_celeba_X")
+    states[name] = restored
+```
+
+## Visualization of reconstructed images
+
+```{python}
+loader_test = DataLoader(celeba_test, batch_size, shuffle=True, generator=torch.Generator().manual_seed(42))
+X, y = next(iter(loader_test))
+image = jnp.array(X).reshape((-1, *specimen.shape)) / 255.0
+
+recons = {
+    "original": image,
+}
+key = jax.random.PRNGKey(42)
+key, *key_Z = jax.random.split(key, 5)
+for i, name in enumerate(configs):
+    recon, _, _ = test_step(states[name], key_Z[i], image)
+    recons[name] = recon
+```
+
+Show a single figure montage
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 313}
+fig, axes = plt.subplots(5, 6, constrained_layout=True, figsize=plt.figaspect(1))
+for row, (name, recon) in enumerate(recons.items()):
+    for col in range(6):
+        axes[row, col].imshow(recon[col], aspect=218 / 178)
+        axes[row, col].axis("off")
+
+fig.suptitle("Original (upper) vs Reconstructed (lower four)")
+fig.show()
+plt.savefig("data/vae/plots/celeba_recon_montage.pdf")
+```
+
+Plot each row as a separate figure and then save them with meaningful filenames
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 1000}
+for name, recon in recons.items():
+    fig, axes = plt.subplots(1, 6, constrained_layout=True, figsize=plt.figaspect(0.2))
+    for col in range(6):
+        axes[col].imshow(recon[col], aspect=218 / 178)
+        axes[col].axis("off")
+
+    fig.show()
+```
+
+## Sampling
+
+```{python}
+key = jax.random.PRNGKey(42)
+key, *key_Z = jax.random.split(key, 5)
+
+generated_images = {}
+for i, name in enumerate(configs):
+    Z = jax.random.normal(key_Z[i], (8, latent_dim))
+    generated_image = decode(states[name], Z)
+    generated_images[name] = generated_image
+```
+
+Show a single figure montage
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 309}
+fig, axes = plt.subplots(4, 6, constrained_layout=True, figsize=plt.figaspect(1))
+for row, (name, generated_image) in enumerate(generated_images.items()):
+    for col in range(6):
+        axes[row, col].imshow(generated_image[col], aspect=218 / 178)
+        axes[row, col].axis("off")
+
+fig.suptitle("Generated", fontsize="xx-large")
+fig.show()
+```
+
+Plot each row as a separate figure and then save them with meaningful filenames
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 967}
+for name, generated_image in generated_images.items():
+    fig, axes = plt.subplots(1, 6, constrained_layout=True, figsize=plt.figaspect(0.2))
+    for col in range(6):
+        axes[col].imshow(generated_image[col], aspect=218 / 178)
+        axes[col].axis("off")
+
+    fig.show()
+```
+
+## Interpolation
+
+```{python}
+X, y = next(iter(loader_test))
+image = jnp.array(X).reshape((-1, *specimen.shape)) / 255.0
+
+means = {}
+key = jax.random.PRNGKey(42)
+key, *key_Z = jax.random.split(key, 5)
+for i, name in enumerate(configs):
+    _, mean, _ = test_step(states[name], key_Z[i], image)
+    means[name] = mean, image
+```
+
+Show interpolation results
+
+```{python}
+def slerp(val, low, high):
+    """Spherical interpolation. val has a range of 0 to 1."""
+    if val <= 0:
+        return low
+    elif val >= 1:
+        return high
+    elif jnp.allclose(low, high):
+        return low
+    omega = jnp.arccos(jnp.dot(low / jnp.linalg.norm(low), high / jnp.linalg.norm(high)))
+    so = jnp.sin(omega)
+    return jnp.sin((1.0 - val) * omega) / so * low + jnp.sin(val * omega) / so * high
+
+
+def interp(start_index, end_index):
+    for name, (mean, image) in means.items():
+        fig, axes = plt.subplots(1, 6, constrained_layout=True, figsize=plt.figaspect(0.2))
+
+        # Anchors
+        axes[0].imshow(image[start_index], aspect=218 / 178)
+        axes[0].set_title("Start Image")
+        axes[0].axis("off")
+        axes[5].imshow(image[end_index], aspect=218 / 178)
+        axes[5].set_title("End Image")
+        axes[5].axis("off")
+
+        # Interpolated images
+        for col in range(1, 5):
+            Z = slerp(col / 5, mean[start_index], mean[end_index])
+            recon = decode(states[name], Z)
+            axes[col].imshow(recon[0], aspect=218 / 178)
+            axes[col].set_title(f"{col/5}")
+            axes[col].axis("off")
+
+        fig.show()
+        plt.savefig(f"data/vae/plots/celeba_interp_start{start_index}_end{end_index}_{name}.pdf")
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+interp(0, 1)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+interp(1, 2)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+interp(2, 3)
+```
+
+## Vector Arithmetic
+
+Calculate the latent vector corresponding to whether the subject is wearing eyeglasses.
+
+```{python}
+eyeglasses_delta = {}
+for name in configs:
+    eyeglasses_delta[name] = (jnp.zeros((latent_dim,)), jnp.zeros((latent_dim,)), 0, 0)
+
+eyeglasses_attr_idx = 15
+key = jax.random.PRNGKey(42)
+for X, y in loader_test:
+    image = jnp.array(X).reshape((-1, *specimen.shape)) / 255.0
+    key, *key_Z = jax.random.split(key, 5)
+    for i, name in enumerate(configs):
+        _, mean, _ = test_step(states[name], key_Z[i], image)
+        sum_pos, sum_neg, count_pos, count_neg = eyeglasses_delta[name]
+        eyeglass_mask = jnp.array(y[:, eyeglasses_attr_idx] == 1)
+        sum_pos += mean[eyeglass_mask, :].sum(axis=0)
+        sum_neg += mean[~eyeglass_mask, :].sum(axis=0)
+        count_pos += eyeglass_mask.sum()
+        count_neg += (~eyeglass_mask).sum()
+        eyeglasses_delta[name] = sum_pos, sum_neg, count_pos, count_neg
+```
+
+```{python}
+X, y = next(iter(loader_test))
+image = jnp.array(X).reshape((-1, *specimen.shape)) / 255.0
+
+va_means = {}
+key = jax.random.PRNGKey(42)
+key, *key_Z = jax.random.split(key, 5)
+for i, name in enumerate(configs):
+    _, mean, _ = test_step(states[name], key_Z[i], image)
+    va_means[name] = mean, image
+```
+
+Show a single figure montage
+
+```{python}
+def arith_montage(image_index, multiplier):
+    fig, axes = plt.subplots(4, 6, constrained_layout=True, figsize=plt.figaspect(1))
+    for row, (name, (sum_pos, sum_neg, count_pos, count_neg)) in enumerate(eyeglasses_delta.items()):
+        delta = sum_pos / count_pos - sum_neg / count_neg
+        mean, image = va_means[name]
+        axes[row, 0].set_title("Original")
+        axes[row, 0].axis("off")
+        axes[row, 0].imshow(image[image_index], aspect=218 / 178)
+        for col in range(1, 6):
+            coef = multiplier * (col - 3)
+            Z = mean[image_index] + coef * delta
+            recon = decode(states[name], Z)
+            axes[row, col].set_title(f"{coef}")
+            axes[row, col].axis("off")
+            axes[row, col].imshow(recon[0], aspect=218 / 178)
+
+    fig.show()
+    plt.savefig(f"data/vae/plots/celeba_arith_img{image_index}_mul{multiplier}_montage.pdf")
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 313}
+arith_montage(0, 1)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 313}
+arith_montage(1, 1)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 313}
+arith_montage(2, 1)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 313}
+arith_montage(0, 2)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 313}
+arith_montage(1, 2)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 313}
+arith_montage(2, 2)
+```
+
+Plot each row as a separate figure and then save them with meaningful filenames
+
+```{python}
+def arith(image_index, multiplier):
+    for name, (sum_pos, sum_neg, count_pos, count_neg) in eyeglasses_delta.items():
+        fig, axes = plt.subplots(1, 6, constrained_layout=True, figsize=plt.figaspect(0.2))
+        delta = sum_pos / count_pos - sum_neg / count_neg
+        mean, image = va_means[name]
+        axes[0].set_title("Original")
+        axes[0].axis("off")
+        axes[0].imshow(image[image_index], aspect=218 / 178)
+        for col in range(1, 6):
+            coef = multiplier * (col - 3)
+            Z = mean[image_index] + coef * delta
+            recon = decode(states[name], Z)
+            axes[col].set_title(f"{coef}")
+            axes[col].axis("off")
+            axes[col].imshow(recon[0], aspect=218 / 178)
+
+        fig.show()
+        plt.savefig(f"data/vae/plots/celeba_arith_img{image_index}_mul{multiplier}_{name}.pdf")
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+arith(0, 1)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+arith(1, 1)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+arith(2, 1)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+arith(0, 2)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+arith(1, 2)
+```
+
+```{python}
+#| colab: {base_uri: 'https://localhost:8080/', height: 969}
+arith(2, 2)
+```
+

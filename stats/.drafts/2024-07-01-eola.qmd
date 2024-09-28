@@ -1,6 +1,6 @@
 ---
-title: "Elements of machine learning algorithms"
-description: "A survey of learning algorithms, with applications to mixture models"
+title: "Elements of learning algorithms"
+description: "A survey of machine learning algorithms, with applications to mixture modeling"
 date: 2024-07-01
 categories: [torch]
 draft: true

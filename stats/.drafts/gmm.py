@@ -1,12 +1,4 @@
----
-jupyter: python3
----
-
-```{python}
-url = "https://raw.githubusercontent.com/probml/probml-data/main/data/faithful.txt"
-```
-
-```{python}
+#%%
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -31,9 +23,8 @@ plt.xlabel("Eruption duration (minutes)")
 plt.ylabel("Waiting time until next eruption (minutes)")
 plt.title("Old Faithful Geyser Data")
 plt.grid(True, alpha=0.3)
-```
 
-```{python}
+#%%
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 
@@ -64,10 +55,8 @@ for i, center in enumerate(centers):
 
 # Calculate and print inertia (within-cluster sum of squares)
 print(f"\nInertia: {kmeans.inertia_:.2f}")
-```
 
-```{python}
-# Library of Gaussian Mixture Models
+#%%
 # To-do: convert library into class
 # Author: Gerardo Durán-Martín
 
@@ -113,23 +102,16 @@ def e_step(pi, mu, Sigma):
     return responsibilities
 
 
-def m_step(X, responsibilities, S=None, eta=None):
+def m_step(X, responsibilities):
     N, M = X.shape
     pi, mu, Sigma = [], [], []
-    has_priors = eta is not None
     for resp_k in responsibilities:
         resp_k = resp_k(X)
         Nk = resp_k.sum()
-        # mu_k
         mu_k = (resp_k[:, np.newaxis] * X).sum(axis=0) / Nk
-        # Sigma_k
         dk = X - mu_k
         Sigma_k = resp_k[:, np.newaxis, np.newaxis] * np.einsum("ij, ik->ikj", dk, dk)
-        Sigma_k = Sigma_k.sum(axis=0)
-        if not has_priors:
-            Sigma_k = Sigma_k / Nk
-        else:
-            Sigma_k = (S + Sigma_k) / (eta + Nk + M + 2)
+        Sigma_k = Sigma_k.sum(axis=0) / Nk
 
         # pi_k
         pi_k = Nk / N
@@ -147,17 +129,19 @@ def gmm_log_likelihood(X, pi, mu, Sigma):
         likelihood += pi_k * norm_k.pdf(X)
     return np.log(likelihood).sum()
 
-
-def apply_em(X, pi, mu, Sigma, threshold=1e-5, S=None, eta=None):
+#%%
+def apply_em(X, pi, mu, Sigma, threshold=1e-5):
     r = compute_responsibilities(0, pi, mu, Sigma)(X)
     log_likelihood = gmm_log_likelihood(X, pi, mu, Sigma)
     hist_log_likelihood = [log_likelihood]
     hist_coeffs = [(pi, mu, Sigma)]
     hist_responsibilities = [r]
+    num_iterations = 0
 
     while True:
+        num_iterations += 1
         responsibilities = e_step(pi, mu, Sigma)
-        pi, mu, Sigma = m_step(X, responsibilities, S, eta)
+        pi, mu, Sigma = m_step(X, responsibilities)
         log_likelihood = gmm_log_likelihood(X, pi, mu, Sigma)
 
         hist_coeffs.append((pi, mu, Sigma))
@@ -165,13 +149,22 @@ def apply_em(X, pi, mu, Sigma, threshold=1e-5, S=None, eta=None):
         hist_log_likelihood.append(log_likelihood)
 
         if np.abs(hist_log_likelihood[-1] / hist_log_likelihood[-2] - 1) < threshold:
+            print(f"Converged after {num_iterations} iterations")
             break
-        results = {"coeffs": hist_coeffs, "rvals": hist_responsibilities, "logl": hist_log_likelihood}
-    return results
-```
 
-```{python}
+    results = {
+        "coeffs": hist_coeffs,
+        "rvals": hist_responsibilities,
+        "logl": hist_log_likelihood,
+        "num_iterations": num_iterations
+    }
+    return results
+
+#%%
 # Initialize parameters for two Gaussian components
+# Set random seed for reproducibility
+np.random.seed(442)
+
 K = 2  # number of components
 N, D = X.shape
 pi = [1/K] * K  # equal priors
@@ -183,10 +176,8 @@ results = apply_em(X, pi, mu, Sigma, threshold=1e-6)
 
 # Extract final parameters
 final_pi, final_mu, final_Sigma = results['coeffs'][-1]
-```
 
-```{python}
-
+#%%
 # Plot the result
 plt.figure(figsize=(10, 6))
 plot_mixtures(X, final_mu, final_pi, final_Sigma, results['rvals'][-1])
@@ -194,9 +185,8 @@ plt.xlabel("Eruption duration (minutes)")
 plt.ylabel("Waiting time until next eruption (minutes)")
 plt.title("Old Faithful Data with Fitted Gaussian Mixture Model")
 plt.show()
-```
 
-```{python}
+#%%
 
 # Print final parameters
 print("Final mixing coefficients (pi):", final_pi)
@@ -206,10 +196,8 @@ for i, m in enumerate(final_mu):
 print("Final covariance matrices (Sigma):")
 for i, s in enumerate(final_Sigma):
     print(f"  Component {i+1}:\n{s}\n")
-```
 
-```{python}
-
+#%%
 # Plot log-likelihood evolution
 plt.figure(figsize=(10, 4))
 plt.plot(results['logl'])
@@ -218,6 +206,3 @@ plt.ylabel("Log-likelihood")
 plt.title("Log-likelihood Evolution During EM Algorithm")
 plt.grid(True, alpha=0.3)
 plt.show()
-```
-
-

@@ -1,10 +1,4 @@
----
-title: Simulated annealing
-date: "2024-03-24"
-jupyter: jax
----
-
-```{python}
+#%%
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -14,18 +8,9 @@ import matplotlib.pyplot as plt
 from IPython import display
 
 from mpl_toolkits.mplot3d import Axes3D
-```
 
-# Target distribution
 
-We use  the [peaks](https://www.mathworks.com/help/matlab/ref/peaks.html) function from matlab, modified so it is positive:
-$$
-p(x,y) \propto  |3 (1-x)^2 e^{-x^2 - (y+1)^2}  
-   - 10 (\frac{x}{5} - x^3 - y^5) e^{-x^2 -y^2}
-   - \frac{1}{3} e^{-(x+1)^2 - y^2} |
-$$
-
-```{python}
+#%%
 def abs_peaks_func(x, y):
     # in contrast to the peaks function: all negative values are multiplied by (-1)
     return jnp.abs(
@@ -33,11 +18,9 @@ def abs_peaks_func(x, y):
         - 10.0 * (x / 5 - x**3 - y**5) * jnp.exp(-(x**2) - y**2)
         - 1.0 / 3 * jnp.exp(-((x + 1) ** 2) - y**2)
     )
-```
 
-# Generate a pdf
 
-```{python}
+#%%
 n = 100  # number of dimension
 pdf = np.zeros([n, n])
 sigma = jnp.zeros([n, n])
@@ -53,13 +36,18 @@ for i in range(0, n):
 pdf = jnp.array(pdf)
 pdf = pdf / pdf.max()
 energy = -jnp.log(pdf)
-```
 
-```{python}
+
+#%%
 def plot_2d_surface(ax, x, y, pdf, title=None):
     x, y = jnp.meshgrid(x, y)
-    im = ax.imshow(pdf, cmap=plt.cm.coolwarm, extent=[x.min(), x.max(), y.min(), y.max()], 
-                   origin='lower', aspect='auto')
+    im = ax.imshow(
+        pdf,
+        cmap=plt.cm.coolwarm,
+        extent=[x.min(), x.max(), y.min(), y.max()],
+        origin='lower',
+        aspect='auto'
+    )
     fig.colorbar(im, ax=ax)
     if title:
         ax.set_title(title)
@@ -74,15 +62,9 @@ plot_2d_surface(ax2, X, Y, energy, title="energy")
 
 plt.tight_layout()
 plt.show()
-```
 
-We can see that areas with high energy are the ones with the lowest probability.
 
-# Heat bath
-
-The "heat bath" refers to a modified version of the distribution in which we vary the temperature.
-
-```{python}
+#%% the heat bath
 temperature = 16  # initial temperature for the plots
 stepT = 8  # how many steps should the Temperature be *0.2  for
 x = np.arange(0, 100 + 100.0 / (n - 1), 100.0 / (n - 1))
@@ -99,7 +81,8 @@ for i in range(stepT):
     ttl = f"T={temperature:0.2f}"
     
     ax = axes[i]
-    im = ax.imshow(sigma, cmap=plt.cm.coolwarm, extent=[x.min(), x.max(), y.min(), y.max()], 
+    im = ax.imshow(sigma, cmap=plt.cm.coolwarm,
+                   extent=[x.min(), x.max(), y.min(), y.max()],
                    origin='lower', aspect='auto')
     ax.set_title(ttl)
     fig.colorbar(im, ax=ax)
@@ -109,13 +92,9 @@ for i in range(stepT):
 plt.tight_layout()
 plt.subplots_adjust(top=0.9)  # Adjust the top margin to accommodate the overall title
 plt.show()
-```
 
-Higher temperatures effectively smooth out the landscape, making all the modes more or less equally likely, which helps the search algorithm to escape local minima. While we gradually lower the temperature, we focus on exploring the region around the maxima. (The original PDF is plotted at lower left corner with T=1.)
 
-# SA algorithm
-
-```{python}
+#%% SA algorithm
 def sim_anneal(proposal="gaussian", sigma=10, seed=jax.random.PRNGKey(0)):
     seed1, seed2 = jax.random.split(seed)
     x_start = jnp.array(
@@ -182,11 +161,13 @@ def sim_anneal(proposal="gaussian", sigma=10, seed=jax.random.PRNGKey(0)):
     n_proposed_points = n_proposed_points + 1
     print(f"nproposed {n_proposed_points}, naccepted {iis}, nreject {nreject}")
     return x_hist, prob_hist, temp_hist
-```
 
-# Run experiments
 
-```{python}
+# # Run experiments
+
+# In[ ]:
+
+
 proposals = ["gaussian", "uniform"]
 x_hist = {}
 prob_hist = {}
@@ -196,9 +177,11 @@ for proposal in proposals:
     x_hist[proposal], prob_hist[proposal], temp_hist[proposal] = sim_anneal(
         proposal=proposal, seed=jax.random.PRNGKey(25)
     )
-```
 
-```{python}
+
+# In[ ]:
+
+
 for proposal in proposals:
     fig, ax1 = plt.subplots()
     
@@ -223,11 +206,13 @@ for proposal in proposals:
     ax1.legend(lines1 + lines2, labels1 + labels2, bbox_to_anchor=(0.55, 0.35), fontsize=8)
     
     sns.despine(right=False)
-```
 
-# Plot the trace 
 
-```{python}
+# # Plot the trace 
+
+# In[ ]:
+
+
 global_markersize = 6
 step_markersize = 4
 for proposal in proposals:
@@ -259,6 +244,4 @@ for proposal in proposals:
     ax.set_ylabel("$x2$")
     ax.set_xlabel("$x1$")
     ax.legend(framealpha=0.5)
-```
-
 

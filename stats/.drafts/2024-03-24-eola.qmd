@@ -1,25 +1,26 @@
 ---
-title: "Elements of learning algorithms"
-description: "A survey of machine learning algorithms, with applications to mixture modeling"
-date: 2024-07-01
+title: "Elements of Learning Algorithms"
+description: "A survey of machine learning algorithms applied to mixture modeling"
+date: 2024-03-24
 categories: [torch]
 draft: true
 ---
 
-In this post we will take a (not so) brief survey of some learning algorithms in machine learning, using mixture models as the working example.  The goal is to showcase how these methods works, and compare their merits and limitations with each other.  Mixture models are multi-modal, have both visible and hidden variables, and have both discrete and continuous parameters, so they are a good example to showcase the various methods.
-
+In this post we will take a (not so brief, also not so comprehensive, albeit long) survey of some common learning algorithms in machine learning, using mixture models as the working example. The goal is to showcase how these methods works, and compare them with each other. We have chosen mixture models as the working example, because they are multi-modal models with both visible and hidden, and both discrete and continuous variables, so they are a good candidate to try out different learning algorithms. And also, of course, because they are ubiquitous in machine learning, and immensely useful in practice.
 
 We will proceed following this roadmap:
 
-- generate data as 2 component, 2 dimensional correlated bivariate Gaussian
-- visualize the data
-- use K-means to cluster the data
-- use EM to fit a GMM model to the data
-- use VI to fit a GMM model to the data
-- use MCMC (MH and Gibbs) to fit a GMM model to the data
-- use normalizing flows (coupling flow, autoregressive flow, continuous flow, flow matching) to fit a GMM model to the data
-- use Langevin sampling to fit a GMM model to the data
-- use score matching to fit a GMM model to the data
+- introduce and visualize the data
+- K-means clustering
+- EM (expectation maximization)
+- SA (simulated annealing)
+- VI (variational inference)
+- MCMC (MH and Gibbs)
+- normalizing flows 
+- score matching
+- flow matching
+- Langevin sampling
+
 
 We start with simple cases, to showcase the capabilities of each methods. Later we'll also show some more demanding examples to showcase the limitations, and why some methods are better suitable for some cases than others.
 

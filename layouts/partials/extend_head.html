@@ -1,0 +1,4 @@
+{{- /* Load KaTeX assets when math is enabled */ -}}
+{{- if or (.Param "math") (.Site.Params.math) -}}
+  {{ partial "math.html" . }}
+{{- end -}}

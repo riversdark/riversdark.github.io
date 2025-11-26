@@ -1,0 +1,17 @@
+# Hugo build artifacts
+public/
+public_test/
+resources/
+_gen/
+.hugo_build.lock
+hugo_stats.json
+
+# OS / tooling noise
+.DS_Store
+Thumbs.db
+
+# ox-hugo / Org exports
+content-org/.ox-hugo-cache/
+
+# Module vendor cache (regenerate with `hugo mod vendor`)
+_vendor/

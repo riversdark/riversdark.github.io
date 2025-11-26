@@ -1,0 +1,85 @@
+baseURL = "https://riversdark.github.io/"
+languageCode = "en-us"
+title = "Lottery of Babylonian Variations"
+theme = ["github.com/adityatelange/hugo-PaperMod"]
+
+enableRobotsTXT = true
+enableEmoji = true
+
+[pagination]
+  pagerSize = 10
+enableRobotsTXT = true
+
+[module]
+
+[params]
+  defaultTheme = "auto"
+  description = "Personal site of Olivier Ma"
+  author = "Olivier Ma"
+  ShowReadingTime = true
+  ShowWordCount = true
+  ShowPostNavLinks = true
+  ShowCodeCopyButtons = true
+  showtoc = true
+  tocopen = true
+  UseHugoToc = true
+  math = true
+
+  [params.homeInfoParams]
+    Title = "A welcome is in order…"
+    Content = "Kind of you to drop by! This is the personal website of Olivier Ma."
+
+[menu]
+  [[menu.main]]
+    identifier = "home"
+    name = "Home"
+    url = "/"
+    weight = 1
+  [[menu.main]]
+    identifier = "stats"
+    name = "Stats"
+    url = "/stats/"
+    weight = 2
+  [[menu.main]]
+    identifier = "culture"
+    name = "Culture"
+    url = "/culture/"
+    weight = 3
+  [[menu.main]]
+    identifier = "tags"
+    name = "Tags"
+    url = "/tags/"
+    weight = 4
+  [[menu.main]]
+    identifier = "categories"
+    name = "Categories"
+    url = "/categories/"
+    weight = 5
+  [[menu.main]]
+    identifier = "about"
+    name = "About"
+    url = "/about/"
+    weight = 6
+
+[markup]
+  defaultMarkdownHandler = "goldmark"
+  [markup.highlight]
+    noClasses = false
+    lineNos = true
+  [markup.goldmark]
+    [markup.goldmark.extensions]
+      [markup.goldmark.extensions.passthrough]
+        enable = true
+        [markup.goldmark.extensions.passthrough.delimiters]
+          block = [['\[', '\]'], ['$$', '$$']]
+          inline = [['\(', '\)']]
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+
+[permalinks]
+  posts = "/:sections/:year/:month/:slug/"

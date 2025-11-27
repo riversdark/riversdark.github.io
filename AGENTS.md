@@ -6,7 +6,7 @@ This file orients AI agents working on the Hugo blog hosted here.
 - Hugo + PaperMod site; content is generated via ox-hugo from Org files in the parent repo `~/git/notes`.
 - Do **not** write or edit posts/pages directly under `content/` or `public/`; re-export from the Org sources instead.
 - Org sources target this repo with `#+hugo_base_dir: src/riversdark.github.io` (e.g., `~/git/notes/20251126093328-blog_about.org`, `~/git/notes/20251126103038-54.org`).
-- Deploy via local build → `gh-pages` branch using `scripts/deploy-gh-pages.sh` (sets `public/` as a worktree for `gh-pages`, adds `.nojekyll`, commits, and pushes). Pages settings should point to `gh-pages` branch, root folder.
+- Deploy via local build → `gh-pages` branch using `scripts/deploy-gh-pages.sh` (sets `public/` as a worktree for `gh-pages`, adds `.nojekyll`, commits, and pushes). Pages settings should point to `gh-pages` branch, root folder. No GitHub Actions deploy workflow remains.
 - Theme is the PaperMod module pinned in `go.mod`; KaTeX is loaded via `layouts/partials/math.html` when `.Param "math"` is true.
 
 ## Layout & Content Sources
@@ -18,7 +18,7 @@ This file orients AI agents working on the Hugo blog hosted here.
 ## Development Workflow
 - For content changes: edit the Org sources in `~/git/notes` with `#+hugo_base_dir: src/riversdark.github.io`, export with ox-hugo, then build here with `hugo serve -D` for drafts or `hugo --gc --minify` for production parity.
 - Deploy to GitHub Pages (no CI): run `./scripts/deploy-gh-pages.sh` from repo root. First run creates the `gh-pages` branch as a worktree at `public/`; subsequent runs rebuild, commit, and push only when there are changes. Overrides: `DEPLOY_BRANCH`, `DEPLOY_MSG`.
-- For theme/config tweaks: adjust `hugo.toml` or add overrides under `layouts/`; update PaperMod with `hugo mod get -u` + `hugo mod tidy` (vendor if necessary).
+- For theme/config tweaks: adjust `hugo.toml` or add overrides under `layouts/`; update PaperMod with `hugo mod get -u` + `hugo mod tidy` (vendor if necessary). Deploy locally with the script (CI workflow removed).
 - Assets: place new static assets under `static/` (or reference ones managed in the parent repo); keep generated artifacts and caches (`public/`, `_vendor/`, `.hugo_build.lock`) out of commits per `.gitignore`.
 
 ## Interaction Guidelines

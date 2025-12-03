@@ -9,6 +9,8 @@ worktree_dir="${repo_root}/public"
 cd "${repo_root}"
 
 ensure_worktree() {
+  git worktree prune
+
   if [ -d "${worktree_dir}/.git" ] && git -C "${worktree_dir}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     current_branch="$(git -C "${worktree_dir}" symbolic-ref --short HEAD 2>/dev/null || true)"
     if [ "${current_branch}" != "${branch}" ]; then
@@ -19,9 +21,14 @@ ensure_worktree() {
   fi
 
   rm -rf "${worktree_dir}"
-  git worktree add --detach "${worktree_dir}"
-  git -C "${worktree_dir}" checkout --orphan "${branch}"
-  git -C "${worktree_dir}" reset --hard
+
+  if git show-ref --verify --quiet "refs/heads/${branch}"; then
+    git worktree add -f "${worktree_dir}" "${branch}"
+  else
+    git worktree add --detach "${worktree_dir}"
+    git -C "${worktree_dir}" switch --orphan "${branch}"
+    git -C "${worktree_dir}" reset --hard
+  fi
 }
 
 build_site() {

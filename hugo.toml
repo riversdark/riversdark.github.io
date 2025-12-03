@@ -16,6 +16,7 @@ enableRobotsTXT = true
   defaultTheme = "auto"
   description = "Personal site of Olivier Ma"
   author = "Olivier Ma"
+  mainSections = ["posts", "stats"]
   ShowReadingTime = true
   ShowWordCount = true
   ShowPostNavLinks = true

@@ -1,2 +1,35 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Home on Lottery of Babylonian Variations</title><link>https://riversdark.github.io/</link><description>Recent content in Home on Lottery of Babylonian Variations</description><generator>Hugo -- 0.152.2</generator><language>en-us</language><lastBuildDate>Mon, 01 Jan 0001 00:00:00 +0000</lastBuildDate><atom:link href="https://riversdark.github.io/index.xml" rel="self" type="application/rss+xml"/><item><title>54</title><link>https://riversdark.github.io/culture/54/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://riversdark.github.io/culture/54/</guid><description>&lt;p&gt;&lt;em&gt;Un extrait de &lt;strong&gt;Des bribes du souvenir de l’époque de Quatre Mai&lt;/strong&gt;, d’Eileen Chang.&lt;/em&gt;&lt;/p&gt;
-&lt;p&gt;Ils étaient toujours quatre personnes ; parfois un autre couple les rejoint et ils font six, mais ils n’étaient jamais deux. La situation a ainsi continué pendant presque un an. Luo et Guo étaient mariés - le malheur commun des hommes de cette époque. On a jamais entendu le mot l’amour et on est déjà marié ; et on a déjà plusieurs enfants. Entre Luo et Guo, et leurs deux petites amies, on laisse cours francs leurs sentiments, mais on reste toujours dans la lisière de la coutume sociale. Et ça ne gêne personne non plus.&lt;/p&gt;</description></item></channel></rss>
+&lt;p&gt;Ils étaient toujours quatre personnes ; parfois un autre couple les rejoint et ils font six, mais ils n’étaient jamais deux. La situation a ainsi continué pendant presque un an. Luo et Guo étaient mariés - le malheur commun des hommes de cette époque. On a jamais entendu le mot l’amour et on est déjà marié ; et on a déjà plusieurs enfants. Entre Luo et Guo, et leurs deux petites amies, on laisse cours francs leurs sentiments, mais on reste toujours dans la lisière de la coutume sociale. Et ça ne gêne personne non plus.&lt;/p&gt;</description></item><item><title>Eight Schools, or the importance of model reparameterisation</title><link>https://riversdark.github.io/stats/eight/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>https://riversdark.github.io/stats/eight/</guid><description>&lt;p&gt;This is an introduction to NumPyro, using the Eight Schools model as example.&lt;/p&gt;
+&lt;p&gt;Here we demonstrate the effects of model reparameterisation.
+Reparameterisation is especially important in hierarchical models, where
+the joint density tend to have high curvatures.&lt;/p&gt;
+&lt;p&gt;&lt;!-- raw HTML omitted --&gt;&lt;!-- raw HTML omitted --&gt;&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt;1
+&lt;/span&gt;&lt;span class="lnt"&gt;2
+&lt;/span&gt;&lt;span class="lnt"&gt;3
+&lt;/span&gt;&lt;span class="lnt"&gt;4
+&lt;/span&gt;&lt;span class="lnt"&gt;5
+&lt;/span&gt;&lt;span class="lnt"&gt;6
+&lt;/span&gt;&lt;span class="lnt"&gt;7
+&lt;/span&gt;&lt;span class="lnt"&gt;8
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-python" data-lang="python"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;numpy&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;np&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;jax.numpy&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;jnp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;numpyro&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="nn"&gt;numpyro.distributions&lt;/span&gt; &lt;span class="k"&gt;as&lt;/span&gt; &lt;span class="nn"&gt;dist&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;jax&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;random&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="kn"&gt;from&lt;/span&gt; &lt;span class="nn"&gt;numpyro.infer&lt;/span&gt; &lt;span class="kn"&gt;import&lt;/span&gt; &lt;span class="n"&gt;MCMC&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;NUTS&lt;/span&gt;&lt;span class="p"&gt;,&lt;/span&gt; &lt;span class="n"&gt;Predictive&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="n"&gt;rng_key&lt;/span&gt; &lt;span class="o"&gt;=&lt;/span&gt; &lt;span class="n"&gt;random&lt;/span&gt;&lt;span class="o"&gt;.&lt;/span&gt;&lt;span class="n"&gt;PRNGKey&lt;/span&gt;&lt;span class="p"&gt;(&lt;/span&gt;&lt;span class="mi"&gt;0&lt;/span&gt;&lt;span class="p"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Here we are using the classic eight schools dataset from Gelman et
+al. We have collected the test score statistics for eight schools,
+including the mean and standard error. The goal, is to determine whether
+some schools have done better than others. Note that since we are
+working with the mean and standard error of eight different schools, we
+are actually modeling the statistical analysis resutls of some other
+people: this is essentially a meta analysis problem.&lt;/p&gt;</description></item></channel></rss>

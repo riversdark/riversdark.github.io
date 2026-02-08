@@ -3,6 +3,7 @@ title = "Eight Schools, or the importance of model reparameterisation"
 author = ["olivier"]
 tags = ["reparam"]
 categories = ["Bayesian", "NumPyro"]
+date = 2022-06-22
 draft = false
 showtoc = true
 tocopen = true

@@ -2,7 +2,7 @@
 &lt;p&gt;Here we demonstrate the effects of model reparameterisation.
 Reparameterisation is especially important in hierarchical models, where
 the joint density tend to have high curvatures.&lt;/p&gt;
-&lt;p&gt;&lt;!-- raw HTML omitted --&gt;&lt;!-- raw HTML omitted --&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a id="code-snippet--import"&gt;&lt;/a&gt;&lt;/p&gt;
 &lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
 &lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
 &lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt;1

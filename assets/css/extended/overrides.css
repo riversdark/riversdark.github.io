@@ -1,0 +1,82 @@
+/* Keep code blocks aligned with site theme mode. */
+:root:not([data-theme="dark"]) .post-content .highlight:not(table),
+:root:not([data-theme="dark"]) .post-content pre code,
+:root:not([data-theme="dark"]) .post-content .highlighttable,
+:root:not([data-theme="dark"]) .post-content .highlight table,
+:root:not([data-theme="dark"]) .post-content .chroma {
+  background: var(--code-bg) !important;
+}
+
+:root:not([data-theme="dark"]) .post-content pre code {
+  color: var(--content) !important;
+}
+
+:root:not([data-theme="dark"]) .post-content .chroma .c,
+:root:not([data-theme="dark"]) .post-content .chroma .ch,
+:root:not([data-theme="dark"]) .post-content .chroma .cm,
+:root:not([data-theme="dark"]) .post-content .chroma .c1 {
+  color: #57606a !important;
+}
+
+:root:not([data-theme="dark"]) .post-content .chroma .k,
+:root:not([data-theme="dark"]) .post-content .chroma .kn,
+:root:not([data-theme="dark"]) .post-content .chroma .kp,
+:root:not([data-theme="dark"]) .post-content .chroma .kr,
+:root:not([data-theme="dark"]) .post-content .chroma .nt,
+:root:not([data-theme="dark"]) .post-content .chroma .o,
+:root:not([data-theme="dark"]) .post-content .chroma .ow {
+  color: #8250df !important;
+}
+
+:root:not([data-theme="dark"]) .post-content .chroma .na,
+:root:not([data-theme="dark"]) .post-content .chroma .nf,
+:root:not([data-theme="dark"]) .post-content .chroma .fm {
+  color: #0969da !important;
+}
+
+:root:not([data-theme="dark"]) .post-content .chroma .s,
+:root:not([data-theme="dark"]) .post-content .chroma .s1,
+:root:not([data-theme="dark"]) .post-content .chroma .s2,
+:root:not([data-theme="dark"]) .post-content .chroma .sb,
+:root:not([data-theme="dark"]) .post-content .chroma .sa,
+:root:not([data-theme="dark"]) .post-content .chroma .se {
+  color: #116329 !important;
+}
+
+:root:not([data-theme="dark"]) .post-content .chroma .m,
+:root:not([data-theme="dark"]) .post-content .chroma .mb,
+:root:not([data-theme="dark"]) .post-content .chroma .mf,
+:root:not([data-theme="dark"]) .post-content .chroma .mi,
+:root:not([data-theme="dark"]) .post-content .chroma .il,
+:root:not([data-theme="dark"]) .post-content .chroma .mo {
+  color: #0550ae !important;
+}
+
+:root:not([data-theme="dark"]) .post-content .chroma .lnt,
+:root:not([data-theme="dark"]) .post-content .chroma .ln {
+  color: #6e7781 !important;
+}
+
+/* Desktop left-column TOC for post pages that have TOC. */
+@media (min-width: 1400px) {
+  .post-single > .toc {
+    position: fixed;
+    top: calc(var(--header-height) + 20px);
+    left: max(12px, calc((100vw - (var(--main-width) + var(--gap) * 2)) / 2 - 304px));
+    width: 288px;
+    max-height: calc(100vh - var(--header-height) - 32px);
+    overflow: auto;
+    margin: 0;
+    z-index: 3;
+  }
+
+  .post-single > .toc details > summary {
+    display: none;
+  }
+
+  .post-single > .toc details > .inner {
+    display: block !important;
+    margin: 0;
+    padding: 8px 10px;
+  }
+}

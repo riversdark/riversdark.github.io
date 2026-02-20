@@ -7,7 +7,7 @@ date = 2022-06-22
 draft = false
 showtoc = true
 tocopen = true
-math = "truta"
+math = true
 +++
 
 This is an introduction to NumPyro, using the Eight Schools model as example.

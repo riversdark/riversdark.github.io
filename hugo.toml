@@ -8,7 +8,6 @@ enableEmoji = true
 
 [pagination]
   pagerSize = 10
-enableRobotsTXT = true
 
 [module]
 
@@ -17,18 +16,15 @@ enableRobotsTXT = true
   description = "Personal site of Olivier Ma"
   author = "Olivier Ma"
   mainSections = ["posts", "stats"]
-  ShowReadingTime = true
+  ShowReadingTime = false
   ShowWordCount = true
   ShowPostNavLinks = true
   ShowCodeCopyButtons = true
+  disableSpecial1stPost = true
   showtoc = true
   tocopen = true
   UseHugoToc = true
   math = true
-
-  [params.homeInfoParams]
-    Title = "A welcome is in order…"
-    Content = "Kind of you to drop by! This is the personal website of Olivier Ma."
 
 [menu]
   [[menu.main]]
@@ -56,18 +52,14 @@ enableRobotsTXT = true
     name = "Categories"
     url = "/categories/"
     weight = 5
-  [[menu.main]]
-    identifier = "about"
-    name = "About"
-    url = "/about/"
-    weight = 6
-
 [markup]
   defaultMarkdownHandler = "goldmark"
   [markup.highlight]
     noClasses = false
     lineNos = true
   [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
     [markup.goldmark.extensions]
       [markup.goldmark.extensions.passthrough]
         enable = true

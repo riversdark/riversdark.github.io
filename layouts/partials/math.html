@@ -7,6 +7,11 @@
     if (typeof renderMathInElement !== "function") return;
     renderMathInElement(document.body, {
       delimiters: [
+        {left: "\\begin{align*}", right: "\\end{align*}", display: true},
+        {left: "\\begin{align}", right: "\\end{align}", display: true},
+        {left: "\\begin{aligned}", right: "\\end{aligned}", display: true},
+        {left: "\\begin{equation*}", right: "\\end{equation*}", display: true},
+        {left: "\\begin{equation}", right: "\\end{equation}", display: true},
         {left: "$$", right: "$$", display: true},
         {left: "\\[", right: "\\]", display: true},
         {left: "\\(", right: "\\)", display: false},

@@ -1,9 +1,7 @@
 +++
 title = "Eight Schools, or the importance of model reparameterisation"
-author = ["olivier"]
-tags = ["reparam"]
-categories = ["Bayesian", "NumPyro"]
 date = 2022-06-22
+categories = ["Bayes", "NumPyro"]
 draft = false
 showtoc = true
 tocopen = true
@@ -62,7 +60,7 @@ for mean, sd in zip(y, sigma):
 plt.title('Test Score from Eight Schools')
 ```
 
-{{< figure src="/ox-hugo/e9d3417662a95b7aac6ceef284da58183a443c88.png" >}}
+{{< figure src="/ox-hugo/af1a05fe909ca3c6c9162d46dc86b3181bf69f3a.png" >}}
 
 
 ## The baseline model {#the-baseline-model}
@@ -76,14 +74,12 @@ distributions. Essentially it's Gaussian all the way up, and we have
 three different levels to consider: student, school, and the whole
 district level population.
 
-\[
-\begin{align*}
-y_n &\sim \text{N} (\theta_n, \sigma_n) \\
-\theta_n &\sim \text{N} (\mu, \tau) \\
-\mu &\sim \text{N} (0, 5) \\
+\begin{align\*}
+y\_n &\sim \text{N} (\theta\_n, \sigma\_n) \\\\
+\theta\_n &\sim \text{N} (\mu, \tau) \\\\
+\mu &\sim \text{N} (0, 5) \\\\
 \tau &\sim \text{HalfCauchy} (5).
-\end{align*}
-\]
+\end{align\*}
 
 In NumPyro models are coded as functions.
 
@@ -156,15 +152,15 @@ Variable: tau
 
 Variable: theta
   Shape: (1000, 8)
-  Mean: [ 0.9881359   0.5466191  -3.216042    2.8044345  -1.2074522   2.4413567
-  4.238887    0.55094534]
+  Mean: [ 0.98813576  0.54661924 -3.2160418   2.8044348  -1.2074523   2.4413564
+  4.2388864   0.5509452 ]
   Variance: [ 5404.2183  2688.3088  4958.9756  2792.266   2839.972   6843.413
- 23103.627   1778.8481]
+ 23103.627   1778.8483]
 
 Variable: obs
   Shape: (1000, 8)
-  Mean: [ 0.3910051  0.649485  -3.0550027  3.0970583 -1.112252   2.3252409
-  4.4084034  1.3089797]
+  Mean: [ 0.39100465  0.649485   -3.0550032   3.0970583  -1.112252    2.3252413
+  4.4084034   1.3089799 ]
   Variance: [ 5565.5737  2790.3027  5192.405   2918.936   2898.9036  6917.7285
  23114.23    2121.8855]
 ```
@@ -199,7 +195,7 @@ es_mcmc_0.run(rng_key, J, sigma)
 ```
 
 ```text
-sample: 100% 6000/6000 [00:18<00:00, 328.12it/s]
+sample: 100% 6000/6000 [00:18<00:00, 317.90it/s]
 ```
 
 The NUTS sampler is a variant of the Hamiltonian Monte Carlo (HMC)
@@ -248,18 +244,16 @@ parameterization.
 
 The remedy we are proposing is quite simple: replacing
 
-$$
-\theta_n \sim \text{N} (\mu, \tau)
-$$
+\\[
+\theta\_n \sim \text{N} (\mu, \tau)
+\\]
 
 with
 
-\[
-\begin{align*}
-\theta_n &= \mu + \tau \theta_0 \\
-\theta_0 &\sim \text{N} (0, 1).
-\end{align*}
-\]
+\begin{align\*}
+\theta\_n &= \mu + \tau  \theta\_0 \\\\
+\theta\_0 &\sim \text{N} (0, 1).
+\end{align\*}
 
 In essence, instead of drawing from a Normal distribution whose
 parameters are themselves variables in the model, we draw from the unit
@@ -292,9 +286,9 @@ print_stats('theta_0', es_prior_samples_1['theta_0'])
 ```text
 Variable: theta_0
   Shape: (1000, 8)
-  Mean: [ 0.03691418  0.02472821  0.01554041  0.03054582 -0.01188057  0.00954548
+  Mean: [ 0.03691419  0.02472822  0.01554041  0.03054582 -0.01188057  0.00954547
  -0.01233995  0.03313057]
-  Variance: [1.0163321 1.0030503 0.9524028 0.9750142 1.0098913 0.9325964 1.0606602
+  Variance: [1.0163321 1.0030503 0.9524028 0.9750142 1.0098913 0.9325964 1.0606601
  1.0366122]
 ```
 
@@ -313,7 +307,7 @@ es_mcmc_1.print_summary(exclude_deterministic=False)
 ```
 
 ```text
-sample: 100% 6000/6000 [00:10<00:00, 546.18it/s]
+sample: 100% 6000/6000 [00:11<00:00, 536.85it/s]
                 mean       std    median      5.0%     95.0%     n_eff     r_hat
         mu      4.37      3.32      4.39     -1.12      9.79  36259.41      1.00
        tau      3.61      3.20      2.78      0.00      7.86  29127.09      1.00
@@ -403,10 +397,10 @@ print_stats('theta', es_prior_samples_2['theta'])
 ```text
 Variable: theta
   Shape: (1000, 8)
-  Mean: [ 0.9881359   0.5466191  -3.216042    2.8044345  -1.2074522   2.4413567
-  4.238887    0.55094534]
+  Mean: [ 0.98813576  0.54661924 -3.2160418   2.8044348  -1.2074523   2.4413564
+  4.2388864   0.5509452 ]
   Variance: [ 5404.2183  2688.3088  4958.9756  2792.266   2839.972   6843.413
- 23103.627   1778.8481]
+ 23103.627   1778.8483]
 ```
 
 Condition on the observed data and do inference.
@@ -422,8 +416,7 @@ es_mcmc_2.print_summary()
 ```
 
 ```text
-sample: 100% 6000/6000 [00:10<00:00, 550.07it/s]
-
+sample: 100% 6000/6000 [00:11<00:00, 540.15it/s]
                    mean       std    median      5.0%     95.0%     n_eff     r_hat
            mu      4.37      3.32      4.39     -1.12      9.79  36259.41      1.00
           tau      3.61      3.20      2.78      0.00      7.86  29127.09      1.00
@@ -437,6 +430,7 @@ theta_base[6]      0.36      0.96      0.38     -1.30      1.88  41323.50      1
 theta_base[7]      0.08      0.99      0.08     -1.59      1.64  44932.38      1.00
 
 Number of divergences: 4
+
 ```
 
 The model reparameterised using handlers, as we can see, performs just like the manually reparameterised one, with the same mean and variance estimation, same effective number of samples, and the same number of divergences.

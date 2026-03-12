@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><title>Stats on Lottery of Babylonian Variations</title><link>https://riversdark.github.io/categories/stats/</link><description>Recent content in Stats on Lottery of Babylonian Variations</description><generator>Hugo -- 0.152.2</generator><language>en-us</language><lastBuildDate>Tue, 18 May 2021 00:00:00 +0000</lastBuildDate><atom:link href="https://riversdark.github.io/categories/stats/index.xml" rel="self" type="application/rss+xml"/><item><title>Local-Global feature time series modeling</title><link>https://riversdark.github.io/posts/2021/05/local-global-feature-time-series-modeling/</link><pubDate>Tue, 18 May 2021 00:00:00 +0000</pubDate><guid>https://riversdark.github.io/posts/2021/05/local-global-feature-time-series-modeling/</guid><description>&lt;h2 id="intro"&gt;intro&lt;/h2&gt;
+&lt;p&gt;Bayesian modeling of global trend, local variation, seasonality, and heterogeneity in time series&lt;/p&gt;
+&lt;p&gt;In this post we&amp;rsquo;ll implement a time series framework based on a flexible smoothed exponential process. The framework can be used to model global trend, local variation, seasonality and other features that are essential for flexible time series modeling.&lt;/p&gt;
+&lt;p&gt;This post also covers several other features under this general framework, notably:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;modeling over-dispersed observations with Student-t distribution&lt;/li&gt;
+&lt;li&gt;explicit and extensive modeling of the variation to capture data heteroscedasticity&lt;/li&gt;
+&lt;li&gt;adding regression components when necessary&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Some other general but important features include:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;extensive usage of visualisation for model criticism&lt;/li&gt;
+&lt;li&gt;prior and posterior simulation for model inspection&lt;/li&gt;
+&lt;li&gt;and a unified prediction framework.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Lastly but most importantly, apart from the specific features and techniques, the post gives a general procedure for Bayesian model building and criticism, which should be useful for building any kind of model for any kind of data.&lt;/p&gt;</description></item></channel></rss>
